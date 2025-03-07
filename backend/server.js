@@ -2,6 +2,12 @@ const express = require('express');
 const cors = require('cors');
 const { Pool } = require('pg');
 require('dotenv').config();
+const cors = require('cors');
+app.use(cors({
+  origin: ['http://localhost:3000', 'https://mi-frontend.vercel.app'], // Permite estos dominios
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  credentials: true
+}));
 
 const app = express();
 app.use(cors());
