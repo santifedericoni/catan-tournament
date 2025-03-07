@@ -3,7 +3,8 @@ const cors = require('cors');
 const { Pool } = require('pg');
 require('dotenv').config();
 console.log("📌 DATABASE_URL:", process.env.DATABASE_URL); // DEBUG
-
+console.log("📌 TODAS LAS VARIABLES DE ENTORNO:");
+console.log(process.env);
 const app = express();
 
 // Configurar CORS para permitir solicitudes desde localhost y producción
