@@ -6,7 +6,7 @@ function App() {
     const [message, setMessage] = useState('');
 
     useEffect(() => {
-        axios.get('http://localhost:5000/test-db')
+      axios.get('https://mi-backend.railway.app/test-db')
             .then(response => {
                 setMessage(response.data.message);
             })
