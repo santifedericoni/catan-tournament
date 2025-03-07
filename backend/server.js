@@ -2,15 +2,16 @@ const express = require('express');
 const cors = require('cors');
 const { Pool } = require('pg');
 require('dotenv').config();
-const cors = require('cors');
+
+const app = express();
+
+// Configurar CORS para permitir solicitudes desde localhost y producción
 app.use(cors({
-  origin: ['http://localhost:3000', 'https://mi-frontend.vercel.app'], // Permite estos dominios
+  origin: ['http://localhost:3000', 'https://mi-frontend.vercel.app'], // Reemplaza con tu URL real en Vercel
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   credentials: true
 }));
 
-const app = express();
-app.use(cors());
 app.use(express.json());
 
 // Configurar conexión a PostgreSQL
@@ -23,7 +24,7 @@ pool.connect()
     .then(() => console.log("✅ Conexión a PostgreSQL exitosa"))
     .catch(err => console.error("❌ Error conectando a PostgreSQL:", err));
 
-// Ruta de prueba
+// Ruta de prueba para verificar conexión a la base de datos
 app.get('/test-db', async (req, res) => {
     try {
         const result = await pool.query('SELECT NOW()');
@@ -38,4 +39,3 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
     console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
 });
-
