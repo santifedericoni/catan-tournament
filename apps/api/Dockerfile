@@ -58,4 +58,4 @@ ENV NODE_ENV=production
 EXPOSE 3000
 
 # (por ahora) arranque simple
-CMD ["node", "dist/main.js"]
+CMD ["node", "dist/src/main.js"]
