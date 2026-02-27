@@ -16,7 +16,7 @@ RUN npm ci
 
 # Copy shared package source and build it
 COPY packages/shared/ ./packages/shared/
-RUN cd packages/shared && npx tsc --outDir dist
+RUN npm run build --workspace=@catan/shared
 
 # Copy API source
 COPY apps/api/ ./apps/api/
