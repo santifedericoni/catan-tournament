@@ -36,7 +36,7 @@ WORKDIR /app
 RUN apk add --no-cache openssl
 
 COPY --from=builder /app/apps/api/dist ./dist
-COPY --from=builder /app/apps/api/node_modules ./node_modules
+# COPY --from=builder /app/apps/api/node_modules ./node_modules
 COPY --from=builder /app/apps/api/prisma ./prisma
 COPY --from=builder /app/node_modules/.prisma ./.prisma
 
