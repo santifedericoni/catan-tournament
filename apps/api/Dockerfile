@@ -36,6 +36,9 @@ FROM base AS builder
 WORKDIR /app/apps/api
 RUN npm run build
 
+# DEBUG: show where Nest output is
+RUN echo "=== FIND main.js ===" && find /app -maxdepth 6 -name main.js -print
+RUN echo "=== LIST possible dist dirs ===" && ls -la /app && ls -la /app/apps/api || true && ls -la /app/apps/api/dist || true && ls -la /app/dist || true && ls -la /app/dist/apps || true
 
 FROM node:20-alpine AS production
 WORKDIR /app
