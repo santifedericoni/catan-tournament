@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "results" ADD COLUMN     "catan_points" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "victory_points" DOUBLE PRECISION NOT NULL DEFAULT 0;

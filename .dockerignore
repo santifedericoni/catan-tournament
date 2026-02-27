@@ -1,0 +1,15 @@
+node_modules/
+apps/*/node_modules/
+packages/*/node_modules/
+dist/
+apps/*/dist/
+packages/*/dist/
+.git/
+.DS_Store
+*.log
+.env
+.env.local
+coverage/
+.nyc_output/
+.gemini/
+.agent/
