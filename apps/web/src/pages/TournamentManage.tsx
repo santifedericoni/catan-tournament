@@ -702,7 +702,7 @@ export function TournamentManage() {
           {![TournamentStatus.FINISHED, TournamentStatus.CANCELLED].includes(t.status as TournamentStatus) && (
             <Button variant="outlined" color="error" onClick={() => handleTransition('cancel')}>Cancel</Button>
           )}
-          <Button variant="outlined" onClick={() => navigate(`/tournaments/${id}`)}>Player View</Button>
+          <Button variant="outlined" onClick={() => navigate(`/tournaments/${id}?view=player`)}>Vista jugador</Button>
         </Box>
       </Box>
 

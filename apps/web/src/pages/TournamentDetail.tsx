@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -28,6 +29,8 @@ import { RegistrationStatus, TournamentRole, TournamentStatus } from '@catan/sha
 export function TournamentDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const playerView = searchParams.get('view') === 'player';
   const { user, isAuthenticated } = useAuthStore();
 
   const [tournament, setTournament] = useState<TDetail | null>(null);
@@ -67,6 +70,15 @@ export function TournamentDetail() {
   }, [id, user?.id]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Organizers go straight to the management view (unless ?view=player)
+  useEffect(() => {
+    if (!tournament || playerView) return;
+    const role = tournament.myRole as TournamentRole | undefined;
+    if (role && [TournamentRole.OWNER, TournamentRole.CO_ORGANIZER, TournamentRole.STAFF].includes(role)) {
+      navigate(`/tournaments/${id}/manage`, { replace: true });
+    }
+  }, [tournament, id, navigate, playerView]);
 
   // Realtime subscriptions
   useEffect(() => {
@@ -166,8 +178,8 @@ export function TournamentDetail() {
               </Button>
             </Tooltip>
             {isOrganizer && (
-              <Button variant="outlined" onClick={() => navigate(`/tournaments/${id}/manage`)}>
-                Manage
+              <Button variant="outlined" color="primary" onClick={() => navigate(`/tournaments/${id}/manage`)}>
+                Panel organizador
               </Button>
             )}
             {canRegister && (
@@ -220,14 +232,6 @@ export function TournamentDetail() {
               <Typography variant="body2"><b>Format:</b> {tournament.format.replace(/_/g, ' ')}</Typography>
               <Typography variant="body2"><b>Table generation:</b> {tournament.tableGenerationMode}</Typography>
             </Box>
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <Typography variant="h6" mb={1}>Tiebreaker Order</Typography>
-            {(tournament.tiebreakerOrder ?? []).map((criterion: string, i: number) => (
-              <Typography key={criterion} variant="body2">
-                {i + 1}. {criterion.replace(/_/g, ' ')}
-              </Typography>
-            ))}
           </Grid>
         </Grid>
       )}

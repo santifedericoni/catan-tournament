@@ -7,7 +7,7 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { TournamentsService } from '../tournaments/tournaments.service';
-import { TableGenerationService } from './table-generation.service';
+import { TableGenerationService, MatchupPair } from './table-generation.service';
 import { EventsGateway } from '../realtime/events.gateway';
 import { LeaderboardService } from '../leaderboard/leaderboard.service';
 import { TableGenerationMode } from '@catan/shared';
@@ -131,19 +131,19 @@ export class RoundsService {
       }
       tableSets = manualAssignment.tables.map((t) => t.playerIds);
     } else if (mode === TableGenerationMode.BALANCED) {
-      const pointsMap = await this.getPlayerPoints(tournamentId, playerIds);
+      const [pointsMap, fullMatchupHistory] = await Promise.all([
+        this.getPlayerPoints(tournamentId, playerIds),
+        this.getFullMatchupHistory(tournamentId),
+      ]);
       const playersWithPoints = playerIds.map((id) => ({
         id,
         currentPoints: pointsMap.get(id) ?? 0,
       }));
-      tableSets = this.tableGeneration.generateBalanced(playersWithPoints);
+      tableSets = this.tableGeneration.generateBalanced(playersWithPoints, fullMatchupHistory);
     } else {
       // RANDOM (default)
-      const matchupHistory = await this.prisma.matchupHistory.findMany({
-        where: { tournamentId },
-        select: { userIdA: true, userIdB: true },
-      });
-      tableSets = this.tableGeneration.generateRandom(playerIds, matchupHistory);
+      const fullMatchupHistory = await this.getFullMatchupHistory(tournamentId);
+      tableSets = this.tableGeneration.generateRandom(playerIds, fullMatchupHistory);
     }
 
     // Persist tables and seats in a transaction
@@ -177,16 +177,19 @@ export class RoundsService {
         tables.push(table);
       }
 
-      // Record matchup history — only for user-user pairs (guests have no FK in matchup_history)
-      const userOnlyTableSets = tableSets.map((seats) => seats.filter((id) => !id.startsWith('guest:')));
-      const matchups = this.tableGeneration.extractMatchups(userOnlyTableSets);
-      if (matchups.length > 0) {
+      // Record matchup history in DB for user-user pairs (schema constraint: FK to User)
+      // Guest pairs are reconstructed from TableSeat records on the next call to getFullMatchupHistory
+      const allMatchups = this.tableGeneration.extractMatchups(tableSets);
+      const userUserMatchups = allMatchups.filter(
+        (m) => !m.participantIdA.startsWith('guest:') && !m.participantIdB.startsWith('guest:'),
+      );
+      if (userUserMatchups.length > 0) {
         await tx.matchupHistory.createMany({
-          data: matchups.map((m) => ({
+          data: userUserMatchups.map((m) => ({
             tournamentId,
             roundId,
-            userIdA: m.userIdA,
-            userIdB: m.userIdB,
+            userIdA: m.participantIdA,
+            userIdB: m.participantIdB,
           })),
         });
       }
@@ -435,6 +438,33 @@ export class RoundsService {
       tournamentId,
       payload: { stageId, type: stage.type },
     });
+  }
+
+  /**
+   * Reconstruct the full matchup history for a tournament, including guest players,
+   * by reading completed TableSeat records grouped by table.
+   * User-user pairs are stored in MatchupHistory; guest pairs are derived from seats.
+   */
+  private async getFullMatchupHistory(tournamentId: string): Promise<MatchupPair[]> {
+    const tables = await this.prisma.table.findMany({
+      where: { round: { stage: { tournamentId } } },
+      select: {
+        seats: { select: { userId: true, guestPlayerId: true } },
+      },
+    });
+
+    const pairs: MatchupPair[] = [];
+    for (const table of tables) {
+      const participantIds = table.seats.map(
+        (s) => s.userId ?? `guest:${s.guestPlayerId}`,
+      );
+      for (let i = 0; i < participantIds.length; i++) {
+        for (let j = i + 1; j < participantIds.length; j++) {
+          pairs.push({ participantIdA: participantIds[i], participantIdB: participantIds[j] });
+        }
+      }
+    }
+    return pairs;
   }
 
   private async getPlayerPoints(

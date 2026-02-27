@@ -1,17 +1,19 @@
-# 🏰 Catan Tournament
+# Catan Tournament Manager
 
-Plataforma web para organizar y jugar torneos de Catan. Monorepo con NestJS (API), React (Web) y tipos compartidos.
+Plataforma completa para gestionar torneos de Catan. Soporta múltiples formatos, inscripciones, generación de mesas, carga de resultados, disputas y leaderboard en tiempo real.
+
+Monorepo con NestJS (API), React (Web) y un paquete de tipos compartidos.
 
 ## Stack
 
-| Layer | Technology |
-|-------|-----------|
-| Frontend | React 18 + TypeScript + Vite + Material UI |
-| Backend | NestJS + TypeScript |
-| Database | PostgreSQL 15 + Prisma ORM |
-| Auth | JWT + Refresh Tokens (bcrypt) |
-| Realtime | Socket.IO |
-| Infra | Docker Compose |
+| Capa | Tecnología |
+|------|-----------|
+| **Frontend** | React 18, TypeScript, Vite, Material UI v5, Zustand, Axios, Socket.IO client |
+| **Backend** | NestJS 10, TypeScript, Passport.js, Socket.IO |
+| **Base de datos** | PostgreSQL 15, Prisma ORM v5 |
+| **Autenticación** | JWT (access 15m + refresh 7d), Bcrypt 12 rounds |
+| **Tiempo real** | Socket.IO 4.6 |
+| **Despliegue** | Docker Compose, Render.com |
 
 ---
 
@@ -157,7 +159,100 @@ catan-tournament/
 │           └── store/          # Zustand (auth state)
 └── packages/
     └── shared/                 # Enums, tipos y DTOs compartidos
+        ├── src/enums/          # TournamentStatus, RoundStatus, etc.
+        ├── src/types/          # TournamentDetail, LeaderboardEntry, etc.
+        └── src/dtos/           # CreateTournamentDto, LoginDto, etc.
 ```
+
+El paquete `@catan/shared` se compila a `dist/` y es importado tanto por la API como por el frontend, garantizando que tipos y enums nunca se desincronicen.
+
+---
+
+## Dominio y lógica principal
+
+### Ciclo de vida de un torneo
+
+```
+DRAFT → PUBLISHED → CHECKIN → RUNNING → FINISHED
+  └───────────────────────────────────────────→ CANCELLED
+```
+
+- **DRAFT**: creado pero no visible públicamente.
+- **PUBLISHED**: abierto para inscripciones.
+- **CHECKIN**: inscripciones cerradas, jugadores confirman asistencia.
+- **RUNNING**: torneo en curso, se juegan rondas.
+- **FINISHED / CANCELLED**: estados terminales.
+
+Las transiciones inválidas son rechazadas por `TournamentsService` con un mapa `VALID_TRANSITIONS`.
+
+### Estructura jerárquica
+
+```
+Tournament
+  └── Stage  (QUALIFIER / SEMIFINAL / FINAL)
+        └── Round
+              └── Table  (mesa de 3-4 jugadores)
+                    ├── TableSeat  (asiento por jugador)
+                    ├── Result     (posición + puntos Catan)
+                    └── PlayerSubmission (carga propia del jugador)
+```
+
+### Formatos de torneo
+
+| Formato | Descripción |
+|---------|-------------|
+| `N_ROUNDS_TOP4_FINAL` | N rondas clasificatorias + final con top 4 |
+| `N_ROUNDS_TOP16_SEMIFINAL_FINAL` | N rondas + semifinal con top 16 + final |
+| `SWISS` | Sistema suizo |
+
+### Generación de mesas
+
+| Modo | Lógica |
+|------|--------|
+| **RANDOM** | Asignación aleatoria minimizando repeticiones via penalty matrix |
+| **BALANCED** | Agrupa por rendimiento acumulado en el torneo (mejores vs mejores) |
+| **MANUAL** | El organizador asigna cada jugador a cada mesa desde la UI |
+
+### Flujo de resultados
+
+```
+Jugadores cargan puntajes → PENDING
+  ↓ todos coinciden              ↓ discrepancia
+CONFIRMED                     DISPUTED
+  ↓                              ↓ organizador resuelve
+OFFICIAL ←─────────────────────────
+```
+
+El organizador puede corregir o finalizar cualquier resultado en cualquier momento con "Finalizar oficial".
+
+### Estados de inscripción
+
+```
+REQUESTED → APPROVED → CHECKED_IN
+          ↘ REJECTED
+          ↘ WAITLIST → APPROVED (cuando queda cupo)
+(cualquier estado) → REMOVED
+```
+
+Hay soporte para **jugadores invitados** (sin cuenta) que el organizador agrega directamente.
+
+---
+
+## Módulos del backend
+
+| Módulo | Responsabilidad |
+|--------|----------------|
+| `auth` | Registro, login, refresh token, logout, estrategias Passport |
+| `users` | Perfil de usuario, estadísticas, historial de rating |
+| `tournaments` | CRUD, ciclo de vida, roles de organizador |
+| `registrations` | Inscripciones, check-in, jugadores invitados |
+| `rounds` | Stages, rondas, generación de mesas, inicio/cierre |
+| `results` | Carga de resultados, correcciones, disputas |
+| `leaderboard` | Cálculo de posiciones con desempates configurables |
+| `rating` | Sistema ELO, actualización post-torneo |
+| `realtime` | Gateway Socket.IO, broadcasting por sala de torneo |
+| `leagues` | Ligas de múltiples torneos con leaderboard acumulado |
+| `audit` | Log inmutable de todas las acciones con actor y payload |
 
 ---
 
@@ -235,6 +330,31 @@ PATCH  /api/users/me/profile             # Editar perfil propio
 | `stage_advanced` | Avance a semifinal/final |
 | `dispute_opened` | Disputa abierta |
 | `dispute_resolved` | Disputa resuelta |
+
+---
+
+## Autenticación
+
+- **Access token**: JWT firmado con `JWT_SECRET`, expira en 15 minutos.
+- **Refresh token**: JWT firmado con `JWT_REFRESH_SECRET`, expira en 7 días. Se guarda hasheado (SHA-256) en la tabla `refresh_tokens` con rotación en cada uso (el token anterior queda revocado).
+- Contraseñas hasheadas con **bcrypt (12 rounds)**.
+- Rate limiting en login: **5 intentos / 15 minutos** por IP.
+
+### Flujo de tokens
+
+```
+POST /auth/login
+  → access_token (15m) + refresh_token (7d)
+
+POST /auth/refresh { refresh_token }
+  → nuevo access_token + nuevo refresh_token
+  → refresh_token anterior queda revocado
+
+POST /auth/logout
+  → revoca todos los refresh_tokens del usuario
+```
+
+El cliente Axios en el frontend intercepta las respuestas 401 y ejecuta el refresh automáticamente, reintentando las requests fallidas.
 
 ---
 

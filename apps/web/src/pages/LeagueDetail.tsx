@@ -250,18 +250,6 @@ export function LeagueDetail() {
               </CardContent>
             </Card>
           </Grid>
-          <Grid item xs={12} sm={6}>
-            <Card variant="outlined">
-              <CardContent>
-                <Typography variant="subtitle2" color="text.secondary" gutterBottom>Tiebreaker Order</Typography>
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 0.5 }}>
-                  {(league.tiebreakerOrder ?? []).map((tb, i) => (
-                    <Chip key={tb} label={`${i + 1}. ${tb.replace(/_/g, ' ')}`} size="small" variant="outlined" />
-                  ))}
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
           {league.creator && (
             <Grid item xs={12}>
               <Typography variant="body2" color="text.secondary">

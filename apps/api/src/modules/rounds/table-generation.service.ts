@@ -5,15 +5,21 @@ export interface PlayerWithPoints {
   currentPoints: number;
 }
 
+/** Generic matchup pair — uses unified participantId (userId or 'guest:UUID') */
+export interface MatchupPair {
+  participantIdA: string;
+  participantIdB: string;
+}
+
 /**
  * Table generation algorithms for Catan tournament rounds.
  *
  * Design decisions:
  * - RANDOM: greedy assignment with penalty matrix to minimize repeat matchups.
  *   Fisher-Yates shuffle ensures base randomness; penalty scoring favors pairing
- *   players who haven't met yet.
- * - BALANCED: sort by current tournament points, group into consecutive buckets of 4.
- *   This creates competitive tables where players of similar standing face each other.
+ *   players who haven't met yet. Works for both regular users and guest players.
+ * - BALANCED: sort by current tournament points, group into consecutive buckets of 4,
+ *   then apply local swaps to separate players who already faced each other.
  * - MANUAL: organizer provides table assignments directly; no algorithm applied.
  * - Remainder handling: 3-player tables are valid in Catan. 1-2 remainder players
  *   get appended to the last table (with a warning to the organizer).
@@ -22,17 +28,15 @@ export interface PlayerWithPoints {
 export class TableGenerationService {
   /**
    * RANDOM mode: greedy assignment minimizing repeat matchup penalties.
+   * Works with any participantId (userId or 'guest:UUID').
    *
-   * Time complexity: O(N^2) in the worst case for penalty lookups.
-   * Space complexity: O(M) for matchup history (M = number of past matchups).
-   *
-   * @param playerIds - List of approved player IDs
-   * @param matchupHistory - Past matchups in this tournament [(userIdA, userIdB)]
+   * @param playerIds - List of approved player IDs (userId or 'guest:UUID')
+   * @param matchupHistory - Past matchups using unified participantIds
    * @returns Arrays of player IDs per table
    */
   generateRandom(
     playerIds: string[],
-    matchupHistory: Array<{ userIdA: string; userIdB: string }>,
+    matchupHistory: MatchupPair[],
   ): string[][] {
     const penalties = this.buildPenaltyMatrix(matchupHistory);
     const shuffled = this.fisherYatesShuffle([...playerIds]);
@@ -66,13 +70,15 @@ export class TableGenerationService {
   }
 
   /**
-   * BALANCED mode: group players by current tournament performance.
+   * BALANCED mode: group players by current tournament performance, then apply
+   * local swaps to minimize repeat matchups within the sorted groupings.
    * Top 4 players (by points) form table 1, next 4 form table 2, etc.
    *
    * @param players - Players with their current tournament point totals
+   * @param matchupHistory - Past matchups, used to avoid repeats via swapping
    * @returns Arrays of player IDs per table
    */
-  generateBalanced(players: PlayerWithPoints[]): string[][] {
+  generateBalanced(players: PlayerWithPoints[], matchupHistory: MatchupPair[] = []): string[][] {
     const sorted = [...players].sort((a, b) => b.currentPoints - a.currentPoints);
     const tables: string[][] = [];
     const remainder: string[] = [];
@@ -87,26 +93,32 @@ export class TableGenerationService {
     }
 
     this.handleRemainder(remainder, tables);
+
+    // Apply swaps between adjacent tables to reduce repeat matchups
+    if (matchupHistory.length > 0) {
+      this.applyAntiRepeatSwaps(tables, matchupHistory);
+    }
+
     return tables;
   }
 
   /**
-   * Build penalty matrix from matchup history.
+   * Build penalty matrix from matchup history using unified participantIds.
    * penalty[a][b] = number of times a and b were at the same table.
    */
   private buildPenaltyMatrix(
-    matchupHistory: Array<{ userIdA: string; userIdB: string }>,
+    matchupHistory: MatchupPair[],
   ): Map<string, Map<string, number>> {
     const penalties = new Map<string, Map<string, number>>();
 
-    for (const { userIdA, userIdB } of matchupHistory) {
-      if (!penalties.has(userIdA)) penalties.set(userIdA, new Map());
-      if (!penalties.has(userIdB)) penalties.set(userIdB, new Map());
+    for (const { participantIdA, participantIdB } of matchupHistory) {
+      if (!penalties.has(participantIdA)) penalties.set(participantIdA, new Map());
+      if (!penalties.has(participantIdB)) penalties.set(participantIdB, new Map());
 
-      const a = penalties.get(userIdA)!;
-      const b = penalties.get(userIdB)!;
-      a.set(userIdB, (a.get(userIdB) ?? 0) + 1);
-      b.set(userIdA, (b.get(userIdA) ?? 0) + 1);
+      const a = penalties.get(participantIdA)!;
+      const b = penalties.get(participantIdB)!;
+      a.set(participantIdB, (a.get(participantIdB) ?? 0) + 1);
+      b.set(participantIdA, (b.get(participantIdA) ?? 0) + 1);
     }
 
     return penalties;
@@ -123,6 +135,60 @@ export class TableGenerationService {
     const candidatePenalties = penalties.get(candidate);
     if (!candidatePenalties) return 0;
     return tableMembers.reduce((sum, member) => sum + (candidatePenalties.get(member) ?? 0), 0);
+  }
+
+  /**
+   * Compute total repeat-matchup score for a table (sum of all pair penalties).
+   */
+  private tableScore(
+    table: string[],
+    penalties: Map<string, Map<string, number>>,
+  ): number {
+    let score = 0;
+    for (let i = 0; i < table.length; i++) {
+      for (let j = i + 1; j < table.length; j++) {
+        score += penalties.get(table[i])?.get(table[j]) ?? 0;
+      }
+    }
+    return score;
+  }
+
+  /**
+   * Reduce repeat matchups in balanced tables by swapping players between
+   * adjacent tables. Only swaps that strictly reduce the combined repeat-matchup
+   * score are accepted. Runs up to 3 passes to converge.
+   *
+   * Adjacent-only swaps preserve the "similar strength plays together" invariant
+   * of balanced mode while avoiding the worst repeat collisions.
+   */
+  private applyAntiRepeatSwaps(tables: string[][], matchupHistory: MatchupPair[]): void {
+    const penalties = this.buildPenaltyMatrix(matchupHistory);
+
+    for (let pass = 0; pass < 3; pass++) {
+      let improved = false;
+      for (let t = 0; t < tables.length - 1; t++) {
+        const tableA = tables[t];
+        const tableB = tables[t + 1];
+
+        for (let i = 0; i < tableA.length; i++) {
+          for (let j = 0; j < tableB.length; j++) {
+            const scoreBefore = this.tableScore(tableA, penalties) + this.tableScore(tableB, penalties);
+
+            // Try swapping tableA[i] with tableB[j]
+            [tableA[i], tableB[j]] = [tableB[j], tableA[i]];
+            const scoreAfter = this.tableScore(tableA, penalties) + this.tableScore(tableB, penalties);
+
+            if (scoreAfter < scoreBefore) {
+              improved = true; // Keep swap
+            } else {
+              // Revert
+              [tableA[i], tableB[j]] = [tableB[j], tableA[i]];
+            }
+          }
+        }
+      }
+      if (!improved) break;
+    }
   }
 
   /**
@@ -167,15 +233,15 @@ export class TableGenerationService {
   }
 
   /**
-   * Extract all pairwise matchups from a table assignment.
+   * Extract all pairwise matchups from a table assignment using unified participantIds.
    * Used to record matchup history after round is generated.
    */
-  extractMatchups(tables: string[][]): Array<{ userIdA: string; userIdB: string }> {
-    const matchups: Array<{ userIdA: string; userIdB: string }> = [];
+  extractMatchups(tables: string[][]): MatchupPair[] {
+    const matchups: MatchupPair[] = [];
     for (const table of tables) {
       for (let i = 0; i < table.length; i++) {
         for (let j = i + 1; j < table.length; j++) {
-          matchups.push({ userIdA: table[i], userIdB: table[j] });
+          matchups.push({ participantIdA: table[i], participantIdB: table[j] });
         }
       }
     }

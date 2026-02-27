@@ -40,10 +40,6 @@ export function TournamentCreate() {
     maxPlayers: 20,
     format: TournamentFormat.N_ROUNDS_TOP4_FINAL,
     tableGenerationMode: TableGenerationMode.RANDOM,
-    scoring1: 10,
-    scoring2: 7,
-    scoring3: 5,
-    scoring4: 3,
   });
 
   const handleChange = (field: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -165,26 +161,6 @@ export function TournamentCreate() {
                   </Select>
                 </FormControl>
               </Grid>
-            </Grid>
-          </CardContent>
-        </Card>
-
-        <Card sx={{ mb: 3 }}>
-          <CardContent>
-            <Typography variant="h6" mb={2}>Scoring Rules (points per position)</Typography>
-            <Grid container spacing={2}>
-              {[1, 2, 3, 4].map((pos) => (
-                <Grid item xs={6} sm={3} key={pos}>
-                  <TextField
-                    label={`${pos === 1 ? '🥇' : pos === 2 ? '🥈' : pos === 3 ? '🥉' : '4th'} Place`}
-                    type="number"
-                    value={form[`scoring${pos}` as keyof typeof form]}
-                    onChange={(e) => setForm((p) => ({ ...p, [`scoring${pos}`]: Number(e.target.value) }))}
-                    fullWidth
-                    inputProps={{ min: 0 }}
-                  />
-                </Grid>
-              ))}
             </Grid>
           </CardContent>
         </Card>
