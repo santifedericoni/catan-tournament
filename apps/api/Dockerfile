@@ -28,7 +28,6 @@ RUN cd apps/api && npx prisma generate
 FROM base AS development
 EXPOSE 3000
 WORKDIR /app
-# Local/dev only
 CMD ["sh", "-c", "cd apps/api && npx prisma migrate deploy && npm run start:dev"]
 
 
@@ -36,26 +35,27 @@ FROM base AS builder
 WORKDIR /app/apps/api
 RUN npm run build
 
-# DEBUG: show where Nest output is
-RUN echo "=== FIND main.js ===" && find /app -maxdepth 6 -name main.js -print
-RUN echo "=== LIST possible dist dirs ===" && ls -la /app && ls -la /app/apps/api || true && ls -la /app/apps/api/dist || true && ls -la /app/dist || true && ls -la /app/dist/apps || true
 
 FROM node:20-alpine AS production
 WORKDIR /app
 RUN apk add --no-cache openssl
 
-# App build output
+# App build output (tu main real termina en dist/src/main.js)
 COPY --from=builder /app/apps/api/dist ./dist
-# Prisma schema (needed at runtime for engines + potential migrations)
 COPY --from=base /app/apps/api/prisma ./prisma
 
 # Runtime deps installed at monorepo root
 COPY --from=base /app/node_modules ./node_modules
-# Prisma engines live here after "prisma generate" on Alpine
 COPY --from=base /app/node_modules/.prisma ./.prisma
+
+# --- FIX CRÍTICO: empaquetar @catan/shared dentro de node_modules ---
+# (si viene como symlink desde workspaces, lo reemplazamos por un paquete real)
+RUN rm -rf /app/node_modules/@catan/shared && mkdir -p /app/node_modules/@catan/shared
+COPY --from=base /app/packages/shared/package.json /app/node_modules/@catan/shared/package.json
+COPY --from=base /app/packages/shared/dist /app/node_modules/@catan/shared/dist
 
 ENV NODE_ENV=production
 EXPOSE 3000
 
-# (por ahora) arranque simple
+# Render necesita PORT; tu main.ts ya lo toma. Este es el entrypoint correcto:
 CMD ["node", "dist/src/main.js"]
