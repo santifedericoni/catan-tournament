@@ -62,9 +62,9 @@ describe('TableGenerationService', () => {
       // the algorithm should try to put them apart
       const players = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
       const history = [
-        { userIdA: 'a', userIdB: 'b' },
-        { userIdA: 'a', userIdB: 'c' },
-        { userIdA: 'a', userIdB: 'd' },
+        { participantIdA: 'a', participantIdB: 'b' },
+        { participantIdA: 'a', participantIdB: 'c' },
+        { participantIdA: 'a', participantIdB: 'd' },
       ];
 
       let aWithBCount = 0;
@@ -85,7 +85,7 @@ describe('TableGenerationService', () => {
       const tables = [['a', 'b', 'c', 'd']];
       const matchups = service.extractMatchups(tables);
       expect(matchups).toHaveLength(6); // C(4,2) = 6
-      const pairs = matchups.map((m) => [m.userIdA, m.userIdB].sort().join('-')).sort();
+      const pairs = matchups.map((m) => [m.participantIdA, m.participantIdB].sort().join('-')).sort();
       expect(pairs).toContain('a-b');
       expect(pairs).toContain('a-c');
       expect(pairs).toContain('a-d');
