@@ -194,7 +194,7 @@ export function LeagueDetail() {
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3, flexWrap: 'wrap', gap: 2 }}>
         <Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-            <Chip label="Liga" size="small" color="secondary" />
+            <Chip label="League" size="small" color="secondary" />
             {league.myRole && (
               <Chip
                 label={league.myRole.replace('_', ' ')}
@@ -385,7 +385,7 @@ function LeagueLeaderboardTable({
                       {entry.displayName}
                     </Typography>
                     {entry.isGuest && (
-                      <Chip label="invitado" size="small" variant="outlined" color="default" sx={{ fontSize: '0.65rem', height: 18 }} />
+                      <Chip label="guest" size="small" variant="outlined" color="default" sx={{ fontSize: '0.65rem', height: 18 }} />
                     )}
                   </Box>
                 </TableCell>

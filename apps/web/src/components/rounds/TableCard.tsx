@@ -27,10 +27,10 @@ interface TableCardProps {
 const POSITION_LABELS: Record<number, string> = { 1: '🥇 1st', 2: '🥈 2nd', 3: '🥉 3rd', 4: '4th' };
 
 const STATUS_CHIP: Record<TableResultStatus, { label: string; color: 'default' | 'warning' | 'success' | 'error' | 'info' }> = {
-  [TableResultStatus.PENDING]: { label: 'Pendiente', color: 'default' },
-  [TableResultStatus.CONFIRMED]: { label: 'Confirmado', color: 'success' },
-  [TableResultStatus.DISPUTED]: { label: 'Disputado', color: 'error' },
-  [TableResultStatus.OFFICIAL]: { label: 'Oficial', color: 'info' },
+  [TableResultStatus.PENDING]: { label: 'Pending', color: 'default' },
+  [TableResultStatus.CONFIRMED]: { label: 'Confirmed', color: 'success' },
+  [TableResultStatus.DISPUTED]: { label: 'Disputed', color: 'error' },
+  [TableResultStatus.OFFICIAL]: { label: 'Official', color: 'info' },
 };
 
 export function TableCard({ table, tournamentId, currentUserId, showResults = true, onRefresh }: TableCardProps) {
@@ -56,14 +56,14 @@ export function TableCard({ table, tournamentId, currentUserId, showResults = tr
           title={
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
               <Typography variant="subtitle1" fontWeight={700}>
-                Mesa {table.tableNumber}
+                Table {table.tableNumber}
               </Typography>
-              {isMyTable && <Chip label="Tu mesa" size="small" color="secondary" />}
+              {isMyTable && <Chip label="Your table" size="small" color="secondary" />}
               <Chip label={statusInfo.label} size="small" color={statusInfo.color} />
-              {table.hasOpenDispute && <Chip label="Disputa" size="small" color="error" />}
+              {table.hasOpenDispute && <Chip label="Dispute" size="small" color="error" />}
               {table.submissionCount > 0 && (
                 <Chip
-                  label={`${table.submissionCount}/${table.seats.length} enviaron`}
+                  label={`${table.submissionCount}/${table.seats.length} submitted`}
                   size="small"
                   variant="outlined"
                 />
@@ -127,7 +127,7 @@ export function TableCard({ table, tournamentId, currentUserId, showResults = tr
 
           {showResults && !hasResults && (
             <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-              Resultados pendientes...
+              Pending results...
             </Typography>
           )}
 
@@ -140,7 +140,7 @@ export function TableCard({ table, tournamentId, currentUserId, showResults = tr
               sx={{ mt: 1.5 }}
               onClick={() => setSubmitOpen(true)}
             >
-              Cargar mis puntajes
+              Submit my scores
             </Button>
           )}
         </CardContent>

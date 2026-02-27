@@ -81,7 +81,7 @@ export function PlayerSubmitModal({
     } catch (e: unknown) {
       setError(
         (e as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-          'Error al enviar puntajes',
+          'Error submitting scores',
       );
     } finally {
       setSubmitting(false);
@@ -91,16 +91,16 @@ export function PlayerSubmitModal({
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle>
-        Cargar puntajes — Mesa {tableNumber}
+        Submit scores — Table {tableNumber}
       </DialogTitle>
       <DialogContent>
         <Alert severity="info" sx={{ mb: 2 }}>
-          Ingresá los puntos de Catan reales de cada jugador tal como terminó la partida.
+          Enter the real Catan points for each player as the game ended.
         </Alert>
 
         <Box sx={{ mb: 2 }}>
           <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
-            ¿Cómo terminó la partida?
+            How did the game end?
           </Typography>
           <ToggleButtonGroup
             value={endedReason}
@@ -108,8 +108,8 @@ export function PlayerSubmitModal({
             onChange={(_, v) => { if (v) setEndedReason(v); }}
             size="small"
           >
-            <ToggleButton value="NORMAL">Normal (alguien llegó a 10+)</ToggleButton>
-            <ToggleButton value="TIME_LIMIT">Por tiempo</ToggleButton>
+            <ToggleButton value="NORMAL">Normal (someone reached 10+)</ToggleButton>
+            <ToggleButton value="TIME_LIMIT">By time</ToggleButton>
           </ToggleButtonGroup>
         </Box>
 
@@ -141,7 +141,7 @@ export function PlayerSubmitModal({
                 </Typography>
                 <TextField
                   size="small"
-                  label="Pts Catan"
+                  label="Catan Pts"
                   value={scores[seat.userId] === 0 ? '' : scores[seat.userId]}
                   placeholder="0–10"
                   onChange={(e) => {
@@ -168,9 +168,9 @@ export function PlayerSubmitModal({
         {error && <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>}
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose} disabled={submitting}>Cancelar</Button>
+        <Button onClick={onClose} disabled={submitting}>Cancel</Button>
         <Button variant="contained" onClick={handleSubmit} disabled={submitting}>
-          {submitting ? 'Enviando...' : 'Enviar puntajes'}
+          {submitting ? 'Submitting...' : 'Submit scores'}
         </Button>
       </DialogActions>
     </Dialog>

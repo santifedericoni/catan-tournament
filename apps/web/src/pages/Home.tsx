@@ -94,7 +94,7 @@ export function Home() {
       {/* Leagues section */}
       {leagues.length > 0 && (
         <Box sx={{ mb: 5 }}>
-          <Typography variant="h5" fontWeight={700} mb={2}>Ligas</Typography>
+          <Typography variant="h5" fontWeight={700} mb={2}>Leagues</Typography>
           <Grid container spacing={2}>
             {leagues.map((league) => (
               <Grid item xs={12} sm={6} md={4} key={league.id}>
@@ -102,7 +102,7 @@ export function Home() {
                   <CardActionArea onClick={() => navigate(`/leagues/${league.id}`)} sx={{ height: '100%' }}>
                     <CardContent>
                       <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
-                        <Chip label="Liga" size="small" color="secondary" />
+                        <Chip label="League" size="small" color="secondary" />
                         <Chip label={FORMAT_LABELS[league.format] ?? league.format} size="small" variant="outlined" />
                       </Box>
                       <Typography variant="h6" fontWeight={600} noWrap>{league.name}</Typography>
@@ -112,8 +112,8 @@ export function Home() {
                         </Typography>
                       )}
                       <Typography variant="caption" color="text.secondary" display="block" mt={1}>
-                        {league.tournamentCount} torneo{league.tournamentCount !== 1 ? 's' : ''}
-                        {league.creator && ` · por ${league.creator.displayName}`}
+                        {league.tournamentCount} tournament{league.tournamentCount !== 1 ? 's' : ''}
+                        {league.creator && ` · by ${league.creator.displayName}`}
                       </Typography>
                     </CardContent>
                   </CardActionArea>
@@ -125,7 +125,7 @@ export function Home() {
       )}
 
       {/* Tournaments section */}
-      <Typography variant="h5" fontWeight={700} mb={2}>Torneos</Typography>
+      <Typography variant="h5" fontWeight={700} mb={2}>Tournaments</Typography>
 
       {/* Filters */}
       <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
@@ -213,12 +213,12 @@ export function Home() {
         >
           <SpeedDialAction
             icon={<EmojiEventsIcon />}
-            tooltipTitle="Nuevo Torneo"
+            tooltipTitle="New Tournament"
             onClick={() => navigate('/tournaments/create')}
           />
           <SpeedDialAction
             icon={<GroupsIcon />}
-            tooltipTitle="Nueva Liga"
+            tooltipTitle="New League"
             onClick={() => navigate('/leagues/create')}
           />
         </SpeedDial>

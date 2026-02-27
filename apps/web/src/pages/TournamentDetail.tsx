@@ -130,9 +130,9 @@ export function TournamentDetail() {
     const url = `${window.location.origin}/tournaments/${id}`;
     try {
       await navigator.clipboard.writeText(url);
-      setSnackMessage('Link copiado al portapapeles');
+      setSnackMessage('Link copied to clipboard');
     } catch {
-      setSnackMessage('No se pudo copiar el link');
+      setSnackMessage('Could not copy link');
     }
   };
 
@@ -167,19 +167,19 @@ export function TournamentDetail() {
           </Box>
 
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
-            <Tooltip title="Copiar link del torneo">
+            <Tooltip title="Copy tournament link">
               <Button
                 variant="outlined"
                 size="small"
                 startIcon={<ContentCopyIcon />}
                 onClick={handleCopyLink}
               >
-                Copiar link
+                Copy link
               </Button>
             </Tooltip>
             {isOrganizer && (
               <Button variant="outlined" color="primary" onClick={() => navigate(`/tournaments/${id}/manage`)}>
-                Panel organizador
+                Organizer Panel
               </Button>
             )}
             {canRegister && (
@@ -209,7 +209,7 @@ export function TournamentDetail() {
       {/* Persistent submission prompt for seated players */}
       {myTableNeedsSubmission && (
         <Alert severity="warning" sx={{ mb: 2 }}>
-          La partida terminó — <strong>cargá los puntajes de tu mesa (Mesa {myTable!.tableNumber})</strong> en la pestaña Rondas.
+          The game ended — <strong>submit your scores for your table (Table {myTable!.tableNumber})</strong> in the Rounds tab.
         </Alert>
       )}
 
@@ -218,7 +218,7 @@ export function TournamentDetail() {
       <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 3 }}>
         <Tab label="Overview" />
         <Tab label="Leaderboard" />
-        <Tab label="Rondas" />
+        <Tab label="Rounds" />
       </Tabs>
 
       {/* Overview tab */}
@@ -247,11 +247,11 @@ export function TournamentDetail() {
           {currentRoundDetail && (
             <Box mb={3}>
               <Typography variant="h6" mb={1}>
-                Ronda {currentRoundDetail.roundNumber} — En curso
+                Round {currentRoundDetail.roundNumber} — In progress
               </Typography>
               {myTableNeedsSubmission && (
                 <Alert severity="warning" sx={{ mb: 2 }}>
-                  Todavía no cargaste los puntajes de tu mesa. ¡Hacelo desde la tarjeta de tu mesa!
+                  You haven't submitted your table scores yet. Do it from your table card!
                 </Alert>
               )}
               <Grid container spacing={2}>

@@ -57,7 +57,7 @@ function getSeatParticipantId(seat: any): string {
 
 function getSeatDisplayName(seat: any): string {
   if (seat.user?.displayName) return seat.user.displayName;
-  if (seat.guestPlayer?.name) return `${seat.guestPlayer.name} (invitado)`;
+  if (seat.guestPlayer?.name) return `${seat.guestPlayer.name} (guest)`;
   return 'Desconocido';
 }
 
@@ -122,7 +122,7 @@ function ResultEntryForm({
       setSubmissions(data);
       setShowSubmissions(true);
     } catch {
-      setError('No se pudieron cargar las submissions');
+      setError('Could not load submissions');
     }
   };
 
@@ -178,7 +178,7 @@ function ResultEntryForm({
       <CardContent>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1, flexWrap: 'wrap', gap: 1 }}>
           <Typography variant="subtitle2" fontWeight={700}>
-            Mesa {table.tableNumber}
+            Table {table.tableNumber}
           </Typography>
           <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
             <Chip
@@ -188,33 +188,33 @@ function ResultEntryForm({
             />
             {(table.submissionCount ?? 0) > 0 && (
               <Chip
-                label={`${table.submissionCount}/${table.seats.length} enviaron`}
+                label={`${table.submissionCount}/${table.seats.length} submitted`}
                 size="small"
                 variant="outlined"
                 onClick={loadSubmissions}
                 sx={{ cursor: 'pointer' }}
               />
             )}
-            {hasResults && <Chip label="Resultados cargados" size="small" color="success" />}
+            {hasResults && <Chip label="Results loaded" size="small" color="success" />}
           </Box>
         </Box>
 
         {table.resultStatus === 'DISPUTED' && (
           <Alert severity="error" sx={{ mb: 1 }}>
-            Discrepancia en puntajes. Revisá las submissions y finalizá el resultado oficial.
+            Score discrepancy. Review the submissions and finalize the official result.
           </Alert>
         )}
 
         <FormControl size="small" sx={{ mb: 1.5 }}>
-          <InputLabel>Fin de partida</InputLabel>
+          <InputLabel>Game end</InputLabel>
           <Select
             value={endedReason}
-            label="Fin de partida"
+            label="Game end"
             onChange={(e) => setEndedReason(e.target.value as 'NORMAL' | 'TIME_LIMIT')}
             sx={{ minWidth: 180 }}
           >
-            <MenuItem value="NORMAL">Normal (10+ puntos)</MenuItem>
-            <MenuItem value="TIME_LIMIT">Por tiempo</MenuItem>
+            <MenuItem value="NORMAL">Normal (10+ points)</MenuItem>
+            <MenuItem value="TIME_LIMIT">By time</MenuItem>
           </Select>
         </FormControl>
 
@@ -233,7 +233,7 @@ function ResultEntryForm({
               </Box>
               <TextField
                 size="small"
-                label="Pts Catan"
+                label="Catan Pts"
                 value={entry.catanPoints === 0 ? '' : entry.catanPoints}
                 placeholder="2–10"
                 onChange={(e) => {
@@ -258,19 +258,19 @@ function ResultEntryForm({
 
         <Box sx={{ display: 'flex', gap: 1, mt: 1.5, flexWrap: 'wrap' }}>
           <Button variant="contained" size="small" onClick={handleSubmit} disabled={submitting}>
-            {hasResults ? 'Corregir' : 'Guardar'}
+            {hasResults ? 'Correct' : 'Save'}
           </Button>
           <Button variant="outlined" size="small" color="warning" onClick={handleFinalize} disabled={submitting}>
-            Finalizar oficial
+            Finalize official
           </Button>
         </Box>
 
         {/* Submissions comparison dialog */}
         <Dialog open={showSubmissions} onClose={() => setShowSubmissions(false)} maxWidth="md" fullWidth>
-          <DialogTitle>Submissions — Mesa {table.tableNumber}</DialogTitle>
+          <DialogTitle>Submissions — Table {table.tableNumber}</DialogTitle>
           <DialogContent>
             {submissions.length === 0 ? (
-              <Typography color="text.secondary">No hay submissions aún.</Typography>
+              <Typography color="text.secondary">No submissions yet.</Typography>
             ) : (
               submissions.map((sub: any) => (
                 <Box key={sub.id} mb={2} p={1.5} border={1} borderColor="divider" borderRadius={1}>
@@ -290,7 +290,7 @@ function ResultEntryForm({
             )}
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setShowSubmissions(false)}>Cerrar</Button>
+            <Button onClick={() => setShowSubmissions(false)}>Close</Button>
           </DialogActions>
         </Dialog>
       </CardContent>
@@ -322,7 +322,7 @@ function OrganizersPanel({ tournamentId, myRole }: { tournamentId: string; myRol
     try {
       await tournamentsApi.addCoOrganizer(tournamentId, email.trim());
       setEmail('');
-      setSuccess('Co-organizador agregado');
+      setSuccess('Co-organizer added');
       await load();
     } catch (e: unknown) {
       setError((e as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Error');
@@ -336,7 +336,7 @@ function OrganizersPanel({ tournamentId, myRole }: { tournamentId: string; myRol
     setError('');
     try {
       await tournamentsApi.removeCoOrganizer(tournamentId, userId);
-      setSuccess('Co-organizador removido');
+      setSuccess('Co-organizer removed');
       await load();
     } catch (e: unknown) {
       setError((e as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Error');
@@ -353,15 +353,15 @@ function OrganizersPanel({ tournamentId, myRole }: { tournamentId: string; myRol
 
   return (
     <Box>
-      <Typography variant="h6" mb={2}>Organizadores</Typography>
+      <Typography variant="h6" mb={2}>Organizers</Typography>
       <TableContainer component={Paper} variant="outlined" sx={{ mb: 3 }}>
         <Table size="small">
           <TableHead>
             <TableRow>
-              <TableCell>Nombre</TableCell>
+              <TableCell>Name</TableCell>
               <TableCell>Email</TableCell>
-              <TableCell>Rol</TableCell>
-              {isOwner && <TableCell align="right">Acciones</TableCell>}
+              <TableCell>Role</TableCell>
+              {isOwner && <TableCell align="right">Actions</TableCell>}
             </TableRow>
           </TableHead>
           <TableBody>
@@ -376,7 +376,7 @@ function OrganizersPanel({ tournamentId, myRole }: { tournamentId: string; myRol
                   <TableCell align="right">
                     {org.role === 'CO_ORGANIZER' && (
                       <Button size="small" color="error" variant="outlined" onClick={() => handleRemove(org.user.id)} disabled={loading}>
-                        Quitar
+                        Remove
                       </Button>
                     )}
                   </TableCell>
@@ -390,18 +390,18 @@ function OrganizersPanel({ tournamentId, myRole }: { tournamentId: string; myRol
       {isOwner && (
         <Box>
           <Divider sx={{ mb: 2 }} />
-          <Typography variant="subtitle2" mb={1}>Agregar co-organizador</Typography>
+          <Typography variant="subtitle2" mb={1}>Add co-organizer</Typography>
           <Box sx={{ display: 'flex', gap: 1 }}>
             <TextField
               size="small"
-              label="Email del usuario"
+              label="User email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               sx={{ minWidth: 240 }}
               onKeyDown={(e) => { if (e.key === 'Enter') handleAdd(); }}
             />
             <Button variant="contained" onClick={handleAdd} disabled={loading || !email.trim()}>
-              Agregar
+              Add
             </Button>
           </Box>
           {error && <Alert severity="error" sx={{ mt: 1 }}>{error}</Alert>}
@@ -427,10 +427,10 @@ function GuestPlayersPanel({ tournamentId, onChanged }: { tournamentId: string; 
     try {
       await tournamentsApi.addGuestPlayer(tournamentId, guestName.trim());
       setGuestName('');
-      setSuccess(`"${guestName.trim()}" agregado como invitado`);
+      setSuccess(`"${guestName.trim()}" added as guest`);
       onChanged();
     } catch (e: unknown) {
-      setError((e as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Error al agregar invitado');
+      setError((e as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Error adding guest');
     } finally {
       setLoading(false);
     }
@@ -438,11 +438,11 @@ function GuestPlayersPanel({ tournamentId, onChanged }: { tournamentId: string; 
 
   return (
     <Box>
-      <Typography variant="subtitle2" mb={1}>Agregar jugador invitado</Typography>
+      <Typography variant="subtitle2" mb={1}>Add guest player</Typography>
       <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
         <TextField
           size="small"
-          label="Nombre del invitado"
+          label="Guest name"
           value={guestName}
           onChange={(e) => setGuestName(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') handleAdd(); }}
@@ -450,7 +450,7 @@ function GuestPlayersPanel({ tournamentId, onChanged }: { tournamentId: string; 
           disabled={loading}
         />
         <Button variant="contained" size="small" onClick={handleAdd} disabled={loading || !guestName.trim()}>
-          Agregar
+          Add
         </Button>
       </Box>
       {error && <Alert severity="error" sx={{ mt: 1 }}>{error}</Alert>}
@@ -577,7 +577,7 @@ export function TournamentManage() {
     if (tableMode === TableGenerationMode.MANUAL) {
       const valid = manualTables.every((t) => t.length >= 3);
       if (!valid) {
-        setActionError('Cada mesa manual debe tener al menos 3 jugadores');
+        setActionError('Each manual table must have at least 3 players');
         return;
       }
     }
@@ -697,16 +697,16 @@ export function TournamentManage() {
             <Button variant="contained" color="success" onClick={() => handleTransition('start')}>Start Tournament</Button>
           )}
           {t.status === TournamentStatus.RUNNING && (
-            <Button variant="contained" color="primary" onClick={() => handleTransition('finish')}>Cerrar torneo</Button>
+            <Button variant="contained" color="primary" onClick={() => handleTransition('finish')}>Close Tournament</Button>
           )}
           {![TournamentStatus.FINISHED, TournamentStatus.CANCELLED].includes(t.status as TournamentStatus) && (
             <Button variant="outlined" color="error" onClick={() => handleTransition('cancel')}>Cancel</Button>
           )}
-          <Button variant="outlined" onClick={() => navigate(`/tournaments/${id}?view=player`)}>Vista jugador</Button>
+          <Button variant="outlined" onClick={() => navigate(`/tournaments/${id}?view=player`)}>Player view</Button>
         </Box>
       </Box>
 
-      {actionLoading && <Box sx={{ mb: 2 }}><CircularProgress size={24} sx={{ mr: 1 }} /> Procesando...</Box>}
+      {actionLoading && <Box sx={{ mb: 2 }}><CircularProgress size={24} sx={{ mr: 1 }} /> Processing...</Box>}
 
       <Snackbar open={!!actionError} autoHideDuration={6000} onClose={() => setActionError('')} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
         <Alert severity="error" onClose={() => setActionError('')} sx={{ width: '100%' }}>{actionError}</Alert>
@@ -743,7 +743,7 @@ export function TournamentManage() {
                 {registrations.map((reg) => {
                   const isGuest = (reg as any).playerType === 'guest';
                   const displayName = isGuest
-                    ? (reg as any).guestPlayer?.name ?? 'Invitado'
+                    ? (reg as any).guestPlayer?.name ?? 'Guest'
                     : reg.user?.displayName;
                   const guestPlayerId = (reg as any).guestPlayerId;
                   return (
@@ -751,7 +751,7 @@ export function TournamentManage() {
                       <TableCell>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                           {displayName}
-                          {isGuest && <Chip label="invitado" size="small" variant="outlined" sx={{ fontSize: '0.65rem', height: 18 }} />}
+                          {isGuest && <Chip label="guest" size="small" variant="outlined" sx={{ fontSize: '0.65rem', height: 18 }} />}
                         </Box>
                       </TableCell>
                       <TableCell>{!isGuest && reg.user?.alias ? `@${reg.user.alias}` : '—'}</TableCell>
@@ -835,19 +835,19 @@ export function TournamentManage() {
             );
             const playerOptions = approvedRegs.map((r: any) => ({
               id: r.userId ?? `guest:${r.guestPlayerId}`,
-              name: r.userId ? (r.user?.displayName ?? r.userId) : (r.guestPlayer?.name ?? 'Invitado'),
+              name: r.userId ? (r.user?.displayName ?? r.userId) : (r.guestPlayer?.name ?? 'Guest'),
             }));
             const allAssigned = manualTables.flat();
 
             return (
               <Card variant="outlined" sx={{ mb: 3, p: 2 }}>
                 <Typography variant="subtitle1" fontWeight={700} mb={2}>
-                  Asignación Manual de Mesas
+                  Manual Table Assignment
                 </Typography>
                 {manualTables.map((table, tableIdx) => (
                   <Box key={tableIdx} sx={{ mb: 2, p: 1.5, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                      <Typography variant="body2" fontWeight={700}>Mesa {tableIdx + 1}</Typography>
+                      <Typography variant="body2" fontWeight={700}>Table {tableIdx + 1}</Typography>
                       {manualTables.length > 1 && (
                         <Button
                           size="small"
@@ -855,16 +855,16 @@ export function TournamentManage() {
                           variant="text"
                           onClick={() => setManualTables((prev) => prev.filter((_, i) => i !== tableIdx))}
                         >
-                          Eliminar mesa
+                          Remove table
                         </Button>
                       )}
                     </Box>
                     <FormControl fullWidth size="small">
-                      <InputLabel>Jugadores (3-4)</InputLabel>
+                      <InputLabel>Players (3-4)</InputLabel>
                       <Select
                         multiple
                         value={table}
-                        label="Jugadores (3-4)"
+                        label="Players (3-4)"
                         onChange={(e) => {
                           const val = e.target.value as string[];
                           if (val.length > 4) return;
@@ -888,7 +888,7 @@ export function TournamentManage() {
                       </Select>
                     </FormControl>
                     <Typography variant="caption" color={table.length < 3 ? 'error' : 'text.secondary'} mt={0.5} display="block">
-                      {table.length}/4 jugadores {table.length < 3 && '— mínimo 3'}
+                      {table.length}/4 players {table.length < 3 && '— minimum 3'}
                     </Typography>
                   </Box>
                 ))}
@@ -898,11 +898,11 @@ export function TournamentManage() {
                   onClick={() => setManualTables((prev) => [...prev, []])}
                   disabled={allAssigned.length >= playerOptions.length}
                 >
-                  + Agregar mesa
+                  + Add table
                 </Button>
                 {playerOptions.length > allAssigned.length && (
                   <Typography variant="caption" color="warning.main" display="block" mt={1}>
-                    {playerOptions.length - allAssigned.length} jugador(es) sin asignar
+                    {playerOptions.length - allAssigned.length} player(s) unassigned
                   </Typography>
                 )}
               </Card>
@@ -947,15 +947,15 @@ export function TournamentManage() {
       {tab === 2 && (
         <Box>
           {!currentRoundDetail ? (
-            <Alert severity="info">No hay ronda en curso. Iniciá una ronda desde la tab "Stages & Rounds".</Alert>
+            <Alert severity="info">No round in progress. Start a round from the "Stages &amp; Rounds" tab.</Alert>
           ) : (
             <Box>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                <Typography variant="h6">Ronda {currentRoundDetail.roundNumber} — Ingreso de resultados</Typography>
-                <Button size="small" variant="outlined" onClick={reloadCurrentRound}>Actualizar</Button>
+                <Typography variant="h6">Round {currentRoundDetail.roundNumber} — Result entry</Typography>
+                <Button size="small" variant="outlined" onClick={reloadCurrentRound}>Refresh</Button>
               </Box>
               <Alert severity="info" sx={{ mb: 2 }}>
-                Los jugadores pueden cargar sus propios puntajes. Hacé click en el chip de submissions para ver lo que enviaron. Podés finalizar el resultado oficial con "Finalizar oficial".
+                Players can submit their own scores. Click on the submissions chip to see what they sent. You can finalize the official result with "Finalize official".
               </Alert>
               <Grid container spacing={2}>
                 {currentRoundDetail.tables.map((table) => (
@@ -975,7 +975,7 @@ export function TournamentManage() {
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
             <Typography variant="h6">Leaderboard</Typography>
             <Button size="small" variant="outlined" onClick={() => id && tournamentsApi.getLeaderboard(id).then(setLeaderboard).catch(() => {})}>
-              Actualizar
+              Refresh
             </Button>
           </Box>
           <LeaderboardTable entries={leaderboard} highlightUserId={user?.id} />
