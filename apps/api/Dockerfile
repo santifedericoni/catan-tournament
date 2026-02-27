@@ -58,4 +58,4 @@ ENV NODE_ENV=production
 EXPOSE 3000
 
 # Render necesita PORT; tu main.ts ya lo toma. Este es el entrypoint correcto:
-CMD ["node", "dist/src/main.js"]
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/src/main.js"]
