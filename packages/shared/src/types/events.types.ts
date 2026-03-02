@@ -10,4 +10,7 @@ export type TournamentEvent =
   | 'result_official'
   | 'stage_advanced'
   | 'dispute_opened'
-  | 'dispute_resolved';
+  | 'dispute_resolved'
+  | 'table_dice_roll'
+  | 'table_timer_start'
+  | 'table_timer_reset';

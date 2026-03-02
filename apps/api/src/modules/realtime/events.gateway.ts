@@ -52,6 +52,37 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     client.leave(`tournament:${tournamentId}`);
   }
 
+  @SubscribeMessage('table_dice_roll')
+  handleTableDiceRoll(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { tournamentId: string; tableId: string; dice1: number; dice2: number },
+  ) {
+    // Broadcast to all in the tournament room (including sender)
+    this.server
+      .to(`tournament:${payload.tournamentId}`)
+      .emit('table_dice_roll', payload);
+  }
+
+  @SubscribeMessage('table_timer_start')
+  handleTableTimerStart(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { tournamentId: string; tableId: string; startedAt: number },
+  ) {
+    this.server
+      .to(`tournament:${payload.tournamentId}`)
+      .emit('table_timer_start', payload);
+  }
+
+  @SubscribeMessage('table_timer_reset')
+  handleTableTimerReset(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { tournamentId: string; tableId: string },
+  ) {
+    this.server
+      .to(`tournament:${payload.tournamentId}`)
+      .emit('table_timer_reset', payload);
+  }
+
   /**
    * Emit a typed event to all clients subscribed to a tournament room.
    */

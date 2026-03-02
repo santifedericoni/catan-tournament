@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import {
   Box,
   Typography,
@@ -38,6 +38,7 @@ import { roundsApi } from '../api/rounds.api';
 import { useAuthStore } from '../store/auth.store';
 import { StatusChip } from '../components/common/StatusChip';
 import { LeaderboardTable } from '../components/leaderboard/LeaderboardTable';
+import { ManualTableAssignmentDialog } from '../components/rounds/ManualTableAssignmentDialog';
 import { TableGenerationMode, TournamentStatus, TournamentRole } from '@catan/shared';
 import type { TournamentDetail, RegistrationDetail, RoundDetail, TableDetail } from '@catan/shared';
 
@@ -459,6 +460,123 @@ function GuestPlayersPanel({ tournamentId, onChanged }: { tournamentId: string; 
   );
 }
 
+const DICE_FACES = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
+const TIMER_SECONDS = 120;
+
+function OrganizerTools() {
+  const [dice1, setDice1] = useState<number | null>(null);
+  const [dice2, setDice2] = useState<number | null>(null);
+  const [rolling, setRolling] = useState(false);
+
+  const [timeLeft, setTimeLeft] = useState(TIMER_SECONDS);
+  const [timerRunning, setTimerRunning] = useState(false);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const rollDice = () => {
+    setRolling(true);
+    let ticks = 0;
+    const interval = setInterval(() => {
+      setDice1(Math.ceil(Math.random() * 6));
+      setDice2(Math.ceil(Math.random() * 6));
+      ticks++;
+      if (ticks >= 12) {
+        clearInterval(interval);
+        setDice1(Math.ceil(Math.random() * 6));
+        setDice2(Math.ceil(Math.random() * 6));
+        setRolling(false);
+      }
+    }, 60);
+  };
+
+  const startTimer = () => {
+    if (timerRunning) return;
+    setTimerRunning(true);
+    intervalRef.current = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(intervalRef.current!);
+          setTimerRunning(false);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  const resetTimer = () => {
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    setTimerRunning(false);
+    setTimeLeft(TIMER_SECONDS);
+  };
+
+  useEffect(() => () => { if (intervalRef.current) clearInterval(intervalRef.current); }, []);
+
+  const mins = String(Math.floor(timeLeft / 60)).padStart(2, '0');
+  const secs = String(timeLeft % 60).padStart(2, '0');
+  const timerColor = timeLeft <= 30 ? 'error.main' : timeLeft <= 60 ? 'warning.main' : 'text.primary';
+  const total = dice1 !== null && dice2 !== null ? dice1 + dice2 : null;
+
+  return (
+    <Box
+      sx={{
+        position: 'fixed',
+        bottom: 24,
+        right: 24,
+        zIndex: 1300,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 1.5,
+        alignItems: 'flex-end',
+      }}
+    >
+      {/* Timer */}
+      <Card variant="outlined" sx={{ minWidth: 180, bgcolor: 'background.paper' }}>
+        <CardContent sx={{ p: '12px !important', textAlign: 'center' }}>
+          <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
+            Timer
+          </Typography>
+          <Typography variant="h4" fontWeight={700} color={timerColor} sx={{ fontVariantNumeric: 'tabular-nums', letterSpacing: 2 }}>
+            {mins}:{secs}
+          </Typography>
+          <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center', mt: 1 }}>
+            <Button size="small" variant="contained" onClick={startTimer} disabled={timerRunning || timeLeft === 0}>
+              Iniciar
+            </Button>
+            <Button size="small" variant="outlined" onClick={resetTimer}>
+              Reset
+            </Button>
+          </Box>
+        </CardContent>
+      </Card>
+
+      {/* Dice */}
+      <Card variant="outlined" sx={{ minWidth: 180, bgcolor: 'background.paper' }}>
+        <CardContent sx={{ p: '12px !important', textAlign: 'center' }}>
+          <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
+            Dados
+          </Typography>
+          <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1, fontSize: 40, lineHeight: 1, mb: 0.5 }}>
+            <span style={{ transition: 'transform 0.1s', transform: rolling ? `rotate(${Math.random() * 60 - 30}deg)` : 'none' }}>
+              {dice1 !== null ? DICE_FACES[dice1 - 1] : '⬜'}
+            </span>
+            <span style={{ transition: 'transform 0.1s', transform: rolling ? `rotate(${Math.random() * 60 - 30}deg)` : 'none' }}>
+              {dice2 !== null ? DICE_FACES[dice2 - 1] : '⬜'}
+            </span>
+          </Box>
+          {total !== null && (
+            <Typography variant="h6" fontWeight={700} color="primary.main">
+              = {total}
+            </Typography>
+          )}
+          <Button size="small" variant="contained" onClick={rollDice} disabled={rolling} sx={{ mt: 0.5 }}>
+            {rolling ? 'Tirando...' : 'Tirar dados'}
+          </Button>
+        </CardContent>
+      </Card>
+    </Box>
+  );
+}
+
 export function TournamentManage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -475,7 +593,9 @@ export function TournamentManage() {
   const [error, setError] = useState('');
   const [actionError, setActionError] = useState('');
   const [tableMode, setTableMode] = useState<TableGenerationMode>(TableGenerationMode.RANDOM);
-  const [manualTables, setManualTables] = useState<string[][]>([[]]);
+  const [manualDialogOpen, setManualDialogOpen] = useState(false);
+  const [manualRoundId, setManualRoundId] = useState<string | null>(null);
+  const [manualRoundNumber, setManualRoundNumber] = useState<number>(1);
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
 
   const load = useCallback(async () => {
@@ -572,27 +692,43 @@ export function TournamentManage() {
     }
   };
 
-  const handleGenerateTables = async (roundId: string) => {
+  const handleGenerateTables = async (roundId: string, roundNumber: number) => {
     if (!id) return;
     if (tableMode === TableGenerationMode.MANUAL) {
-      const valid = manualTables.every((t) => t.length >= 3);
-      if (!valid) {
-        setActionError('Each manual table must have at least 3 players');
-        return;
-      }
+      setManualRoundId(roundId);
+      setManualRoundNumber(roundNumber);
+      setManualDialogOpen(true);
+      return;
     }
     setActionLoading(true);
     setSuccessMsg('');
     try {
-      const body = tableMode === TableGenerationMode.MANUAL
-        ? { tables: manualTables.map((playerIds, i) => ({ tableNumber: i + 1, playerIds })) }
-        : undefined;
-      await roundsApi.generateTables(id, roundId, tableMode, body);
+      await roundsApi.generateTables(id, roundId, tableMode, undefined);
       const detail = await roundsApi.getRound(id, roundId);
       setCurrentRoundDetail(detail as RoundDetail);
       setSuccessMsg('Tables generated successfully');
     } catch (e: unknown) {
       setActionError((e as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Failed to generate tables');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleManualConfirm = async (tables: { tableNumber: number; playerIds: string[] }[]) => {
+    if (!id || !manualRoundId) return;
+    setActionLoading(true);
+    setSuccessMsg('');
+    try {
+      await roundsApi.generateTables(id, manualRoundId, TableGenerationMode.MANUAL, { tables });
+      const detail = await roundsApi.getRound(id, manualRoundId);
+      setCurrentRoundDetail(detail as RoundDetail);
+      setSuccessMsg('Tables generated successfully');
+      setManualDialogOpen(false);
+      setManualRoundId(null);
+      await load();
+    } catch (e: unknown) {
+      setActionError((e as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Failed to generate tables');
+      throw e;
     } finally {
       setActionLoading(false);
     }
@@ -817,9 +953,6 @@ export function TournamentManage() {
               label="Table Generation Mode"
               onChange={(e) => {
                 setTableMode(e.target.value as TableGenerationMode);
-                if (e.target.value === TableGenerationMode.MANUAL) {
-                  setManualTables([[]]);
-                }
               }}
             >
               <MenuItem value={TableGenerationMode.RANDOM}>Random</MenuItem>
@@ -827,87 +960,6 @@ export function TournamentManage() {
               <MenuItem value={TableGenerationMode.MANUAL}>Manual</MenuItem>
             </Select>
           </FormControl>
-
-          {tableMode === TableGenerationMode.MANUAL && (() => {
-            // Build player list from approved/checked-in registrations
-            const approvedRegs = registrations.filter((r) =>
-              ['APPROVED', 'CHECKED_IN'].includes(r.status),
-            );
-            const playerOptions = approvedRegs.map((r: any) => ({
-              id: r.userId ?? `guest:${r.guestPlayerId}`,
-              name: r.userId ? (r.user?.displayName ?? r.userId) : (r.guestPlayer?.name ?? 'Guest'),
-            }));
-            const allAssigned = manualTables.flat();
-
-            return (
-              <Card variant="outlined" sx={{ mb: 3, p: 2 }}>
-                <Typography variant="subtitle1" fontWeight={700} mb={2}>
-                  Manual Table Assignment
-                </Typography>
-                {manualTables.map((table, tableIdx) => (
-                  <Box key={tableIdx} sx={{ mb: 2, p: 1.5, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                      <Typography variant="body2" fontWeight={700}>Table {tableIdx + 1}</Typography>
-                      {manualTables.length > 1 && (
-                        <Button
-                          size="small"
-                          color="error"
-                          variant="text"
-                          onClick={() => setManualTables((prev) => prev.filter((_, i) => i !== tableIdx))}
-                        >
-                          Remove table
-                        </Button>
-                      )}
-                    </Box>
-                    <FormControl fullWidth size="small">
-                      <InputLabel>Players (3-4)</InputLabel>
-                      <Select
-                        multiple
-                        value={table}
-                        label="Players (3-4)"
-                        onChange={(e) => {
-                          const val = e.target.value as string[];
-                          if (val.length > 4) return;
-                          setManualTables((prev) => prev.map((t, i) => i === tableIdx ? val : t));
-                        }}
-                        renderValue={(selected) =>
-                          (selected as string[])
-                            .map((id) => playerOptions.find((p) => p.id === id)?.name ?? id)
-                            .join(', ')
-                        }
-                      >
-                        {playerOptions.map((p) => (
-                          <MenuItem
-                            key={p.id}
-                            value={p.id}
-                            disabled={allAssigned.includes(p.id) && !table.includes(p.id)}
-                          >
-                            {p.name}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                    <Typography variant="caption" color={table.length < 3 ? 'error' : 'text.secondary'} mt={0.5} display="block">
-                      {table.length}/4 players {table.length < 3 && '— minimum 3'}
-                    </Typography>
-                  </Box>
-                ))}
-                <Button
-                  size="small"
-                  variant="outlined"
-                  onClick={() => setManualTables((prev) => [...prev, []])}
-                  disabled={allAssigned.length >= playerOptions.length}
-                >
-                  + Add table
-                </Button>
-                {playerOptions.length > allAssigned.length && (
-                  <Typography variant="caption" color="warning.main" display="block" mt={1}>
-                    {playerOptions.length - allAssigned.length} player(s) unassigned
-                  </Typography>
-                )}
-              </Card>
-            );
-          })()}
 
           {t.stages?.map((stage) => (
             <Box key={stage.id} mb={3}>
@@ -925,7 +977,7 @@ export function TournamentManage() {
                     <Box sx={{ display: 'flex', gap: 1 }}>
                       {round.status === 'PENDING' && (
                         <>
-                          <Button size="small" variant="outlined" onClick={() => handleGenerateTables(round.id)}>Generate Tables ({tableMode})</Button>
+                          <Button size="small" variant="outlined" onClick={() => handleGenerateTables(round.id, round.roundNumber)}>Generate Tables ({tableMode})</Button>
                           <Button size="small" variant="contained" onClick={() => handleStartRound(round.id)}>Start Round</Button>
                           <Button size="small" variant="text" color="error" onClick={() => handleDeleteRound(round.id)}>Delete</Button>
                         </>
@@ -1002,6 +1054,29 @@ export function TournamentManage() {
           })}
         </Box>
       )}
+
+      {/* Organizer tools (dados + timer) — solo visible para santiago.federiconi */}
+      {user?.email === 'santiago.federiconi@gmail.com' && <OrganizerTools />}
+
+      {/* Manual table assignment dialog */}
+      {(() => {
+        const approvedRegs = registrations.filter((r) =>
+          ['APPROVED', 'CHECKED_IN'].includes(r.status),
+        );
+        const playerOptions = approvedRegs.map((r: any) => ({
+          id: r.userId ?? `guest:${r.guestPlayerId}`,
+          name: r.userId ? (r.user?.displayName ?? r.userId) : (r.guestPlayer?.name ?? 'Guest'),
+        }));
+        return (
+          <ManualTableAssignmentDialog
+            open={manualDialogOpen}
+            onClose={() => { setManualDialogOpen(false); setManualRoundId(null); }}
+            onConfirm={handleManualConfirm}
+            playerOptions={playerOptions}
+            roundNumber={manualRoundNumber}
+          />
+        );
+      })()}
     </Box>
   );
 }

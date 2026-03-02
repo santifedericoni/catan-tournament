@@ -51,5 +51,10 @@ export function useSocket(tournamentId: string | undefined) {
     };
   }, []);
 
-  return { on, socket: socketRef.current };
+  // Stable emit that always uses the current socket ref, safe to call from handlers
+  const emit = useCallback((event: string, data?: unknown) => {
+    socketRef.current?.emit(event, data);
+  }, []);
+
+  return { on, emit };
 }

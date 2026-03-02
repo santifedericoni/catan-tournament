@@ -21,6 +21,7 @@ import { roundsApi } from '../api/rounds.api';
 import { StatusChip } from '../components/common/StatusChip';
 import { LeaderboardTable } from '../components/leaderboard/LeaderboardTable';
 import { TableCard } from '../components/rounds/TableCard';
+import { TableGameTools } from '../components/rounds/TableGameTools';
 import { useSocket } from '../hooks/useSocket';
 import { useAuthStore } from '../store/auth.store';
 import type { TournamentDetail as TDetail, LeaderboardEntry, RoundDetail } from '@catan/shared';
@@ -255,16 +256,22 @@ export function TournamentDetail() {
                 </Alert>
               )}
               <Grid container spacing={2}>
-                {currentRoundDetail.tables.map((table) => (
-                  <Grid item xs={12} md={6} key={table.id}>
-                    <TableCard
-                      table={table}
-                      tournamentId={id!}
-                      currentUserId={user?.id}
-                      onRefresh={load}
-                    />
-                  </Grid>
-                ))}
+                {currentRoundDetail.tables.map((table) => {
+                  const isMyTable = table.seats.some((s) => s.userId === user?.id);
+                  return (
+                    <Grid item xs={12} md={6} key={table.id}>
+                      <TableCard
+                        table={table}
+                        tournamentId={id!}
+                        currentUserId={user?.id}
+                        onRefresh={load}
+                      />
+                      {isMyTable && (
+                        <TableGameTools tournamentId={id!} tableId={table.id} />
+                      )}
+                    </Grid>
+                  );
+                })}
               </Grid>
             </Box>
           )}

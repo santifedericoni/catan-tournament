@@ -26,6 +26,15 @@ interface PlayerSubmitModalProps {
   seats: SeatDetail[];
 }
 
+// Stable participant ID: userId for real users, 'guest:guestPlayerId' for guests
+function getParticipantId(seat: SeatDetail): string {
+  return seat.userId ?? `guest:${(seat as any).guestPlayerId}`;
+}
+
+function getParticipantName(seat: SeatDetail): string {
+  return seat.user?.displayName ?? (seat as any).guestPlayer?.name ?? 'Invitado';
+}
+
 export function PlayerSubmitModal({
   open,
   onClose,
@@ -36,7 +45,7 @@ export function PlayerSubmitModal({
   seats,
 }: PlayerSubmitModalProps) {
   const [scores, setScores] = useState<Record<string, number>>(
-    Object.fromEntries(seats.map((s) => [s.userId, 0])),
+    Object.fromEntries(seats.map((s) => [getParticipantId(s), 0])),
   );
   const [endedReason, setEndedReason] = useState<'NORMAL' | 'TIME_LIMIT'>('NORMAL');
   const [submitting, setSubmitting] = useState(false);
@@ -44,26 +53,28 @@ export function PlayerSubmitModal({
 
   // Auto-calculate positions for display
   const sorted = [...seats].sort((a, b) => {
-    const diff = (scores[b.userId] ?? 0) - (scores[a.userId] ?? 0);
+    const pid_a = getParticipantId(a);
+    const pid_b = getParticipantId(b);
+    const diff = (scores[pid_b] ?? 0) - (scores[pid_a] ?? 0);
     if (diff !== 0) return diff;
-    return a.userId.localeCompare(b.userId);
+    return pid_a.localeCompare(pid_b);
   });
-  const maxPts = scores[sorted[0]?.userId] ?? 0;
+  const maxPts = scores[getParticipantId(sorted[0])] ?? 0;
   const isSharedFirst =
     (endedReason === 'TIME_LIMIT' || maxPts < 10) &&
-    sorted.filter((s) => (scores[s.userId] ?? 0) === maxPts).length > 1;
+    sorted.filter((s) => (scores[getParticipantId(s)] ?? 0) === maxPts).length > 1;
 
-  const getPosition = (userId: string) => {
-    const idx = sorted.findIndex((s) => s.userId === userId);
-    const pts = scores[userId] ?? 0;
+  const getPosition = (pid: string) => {
+    const idx = sorted.findIndex((s) => getParticipantId(s) === pid);
+    const pts = scores[pid] ?? 0;
     if (isSharedFirst && pts === maxPts) return 1;
     return idx + 1;
   };
 
-  const getVP = (userId: string) => {
-    const pos = getPosition(userId);
+  const getVP = (pid: string) => {
+    const pos = getPosition(pid);
     if (pos !== 1) return null;
-    const pts = scores[userId] ?? 0;
+    const pts = scores[pid] ?? 0;
     const tiedAt9 = endedReason === 'TIME_LIMIT' && isSharedFirst && pts === 9;
     if (tiedAt9) return '½ VP';
     if (endedReason === 'NORMAL' && pts >= 10) return '1 VP';
@@ -74,7 +85,7 @@ export function PlayerSubmitModal({
     setError('');
     setSubmitting(true);
     try {
-      const results = seats.map((s) => ({ userId: s.userId, catanPoints: scores[s.userId] ?? 0 }));
+      const results = seats.map((s) => ({ userId: s.userId, catanPoints: scores[getParticipantId(s)] ?? 0 }));
       await roundsApi.submitPlayerScores(tournamentId, tableId, results, endedReason);
       onSubmitted();
       onClose();
@@ -115,10 +126,11 @@ export function PlayerSubmitModal({
 
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
           {seats.map((seat) => {
-            const pos = getPosition(seat.userId);
-            const vp = getVP(seat.userId);
+            const pid = getParticipantId(seat);
+            const pos = getPosition(pid);
+            const vp = getVP(pid);
             return (
-              <Box key={seat.userId} sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Box key={pid} sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                 <Box
                   sx={{
                     width: 32,
@@ -137,17 +149,17 @@ export function PlayerSubmitModal({
                   {pos}°
                 </Box>
                 <Typography variant="body2" sx={{ minWidth: 120, flexShrink: 0 }}>
-                  {seat.user.displayName}
+                  {getParticipantName(seat)}
                 </Typography>
                 <TextField
                   size="small"
                   label="Catan Pts"
-                  value={scores[seat.userId] === 0 ? '' : scores[seat.userId]}
+                  value={scores[pid] === 0 ? '' : scores[pid]}
                   placeholder="0–10"
                   onChange={(e) => {
                     const raw = e.target.value.replace(/\D/g, '');
                     const val = raw === '' ? 0 : Math.min(10, parseInt(raw, 10));
-                    setScores((prev) => ({ ...prev, [seat.userId]: val }));
+                    setScores((prev) => ({ ...prev, [pid]: val }));
                   }}
                   sx={{ width: 100 }}
                   inputProps={{ inputMode: 'numeric' }}

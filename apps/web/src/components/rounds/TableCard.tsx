@@ -75,7 +75,14 @@ export function TableCard({ table, tournamentId, currentUserId, showResults = tr
         <CardContent>
           <List dense disablePadding>
             {table.seats.map((seat, idx) => {
-              const result = table.results.find((r) => r.userId === seat.userId);
+              const isGuest = !seat.userId;
+              const displayName = seat.user?.displayName ?? (seat as any).guestPlayer?.name ?? 'Invitado';
+              const alias = seat.user?.alias ?? null;
+              const result = table.results.find((r) =>
+                isGuest
+                  ? (r as any).guestPlayerId === (seat as any).guestPlayerId
+                  : r.userId === seat.userId,
+              );
               return (
                 <React.Fragment key={seat.id}>
                   {idx > 0 && <Divider />}
@@ -89,10 +96,15 @@ export function TableCard({ table, tournamentId, currentUserId, showResults = tr
                       primary={
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <Typography variant="body2" fontWeight={seat.userId === currentUserId ? 700 : 400}>
-                            {seat.user.displayName}
-                            {seat.user.alias && (
+                            {displayName}
+                            {isGuest && (
                               <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 0.5 }}>
-                                @{seat.user.alias}
+                                (invitado)
+                              </Typography>
+                            )}
+                            {alias && (
+                              <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 0.5 }}>
+                                @{alias}
                               </Typography>
                             )}
                           </Typography>
