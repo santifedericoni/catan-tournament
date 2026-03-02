@@ -6,13 +6,14 @@ import {
   Card,
   CardContent,
   Divider,
+  Grid,
 } from '@mui/material';
 import { useSocket } from '../../hooks/useSocket';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 const TIMER_SECONDS = 120;
 const ROLL_ANIMATION_MS = 800;
-const ROLL_TICK_MS = 60; // how fast the numbers cycle during animation
+const ROLL_TICK_MS = 60;
 
 // ─── Dice SVG ────────────────────────────────────────────────────────────────
 const DOT_POSITIONS: Record<number, [number, number][]> = {
@@ -24,13 +25,13 @@ const DOT_POSITIONS: Record<number, [number, number][]> = {
   6: [[28, 22], [72, 22], [28, 50], [72, 50], [28, 78], [72, 78]],
 };
 
-function DieFace({ value, rolling }: { value: number; rolling: boolean }) {
+function DieFace({ value, rolling, size = 72 }: { value: number; rolling: boolean; size?: number }) {
   const dots = DOT_POSITIONS[value] ?? [];
   return (
     <Box
       sx={{
-        width: 72,
-        height: 72,
+        width: size,
+        height: size,
         borderRadius: 2.5,
         bgcolor: rolling ? 'primary.dark' : 'background.paper',
         border: '2px solid',
@@ -41,9 +42,8 @@ function DieFace({ value, rolling }: { value: number; rolling: boolean }) {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        position: 'relative',
+        flexShrink: 0,
         transition: 'background-color 0.15s, border-color 0.15s, box-shadow 0.15s',
-        // Spin animation: rotate Y axis like a physical die flipping
         animation: rolling ? 'diceFlip 0.18s linear infinite' : 'none',
         '@keyframes diceFlip': {
           '0%':   { transform: 'rotateY(0deg) scale(1.08)' },
@@ -52,7 +52,6 @@ function DieFace({ value, rolling }: { value: number; rolling: boolean }) {
           '75%':  { transform: 'rotateY(270deg) scale(0.94)' },
           '100%': { transform: 'rotateY(360deg) scale(1.08)' },
         },
-        perspective: '200px',
       }}
     >
       <svg
@@ -77,7 +76,6 @@ function DieFace({ value, rolling }: { value: number; rolling: boolean }) {
 }
 
 // ─── Histogram ───────────────────────────────────────────────────────────────
-// Theoretical probabilities for sums 2–12 with 2d6
 const THEORETICAL_PROBS = [1, 2, 3, 4, 5, 6, 5, 4, 3, 2, 1].map((n) => n / 36);
 
 function DiceHistogram({ counts }: { counts: number[] }) {
@@ -85,15 +83,11 @@ function DiceHistogram({ counts }: { counts: number[] }) {
   const total = counts.reduce((a, b) => a + b, 0);
   const maxCount = Math.max(...counts, 1);
 
-  // SVG histogram dimensions
-  const W = 280;
-  const H = 100;
-  const barCount = 11;
-  const barW = W / barCount;
+  const W = 300;
+  const H = 120;
+  const barW = W / 11;
   const pad = 2;
-
-  // Theoretical curve: scale so max theoretical == chart height
-  const maxTheoretical = Math.max(...THEORETICAL_PROBS); // 6/36
+  const maxTheoretical = Math.max(...THEORETICAL_PROBS);
   const curvePoints = THEORETICAL_PROBS.map((p, i) => {
     const x = i * barW + barW / 2;
     const y = H - (p / maxTheoretical) * H;
@@ -102,18 +96,11 @@ function DiceHistogram({ counts }: { counts: number[] }) {
 
   return (
     <Box>
-      {/* SVG chart */}
       <Box sx={{ position: 'relative' }}>
-        <svg
-          width="100%"
-          viewBox={`0 0 ${W} ${H}`}
-          style={{ overflow: 'visible', display: 'block' }}
-        >
-          {/* Bars */}
+        <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ overflow: 'visible', display: 'block' }}>
           {labels.map((n, i) => {
             const count = counts[i];
-            const heightPct = count / maxCount;
-            const barH = Math.max(heightPct * H, count > 0 ? 4 : 0);
+            const barH = Math.max((count / maxCount) * H, count > 0 ? 4 : 0);
             const x = i * barW + pad;
             const y = H - barH;
             const isHot = n === 7;
@@ -123,77 +110,45 @@ function DiceHistogram({ counts }: { counts: number[] }) {
               <g key={n}>
                 <title>{`${n}: ${count} ${count === 1 ? 'vez' : 'veces'}`}</title>
                 <rect
-                  x={x}
-                  y={y}
-                  width={barW - pad * 2}
-                  height={barH}
-                  fill={fill}
-                  opacity={count === 0 ? 0.12 : 0.85}
-                  rx={2}
+                  x={x} y={y}
+                  width={barW - pad * 2} height={barH}
+                  fill={fill} opacity={count === 0 ? 0.12 : 0.85} rx={2}
                   style={{ transition: 'height 0.45s cubic-bezier(0.34,1.4,0.64,1), y 0.45s cubic-bezier(0.34,1.4,0.64,1)' }}
                 />
-                {/* Count label above bar */}
                 {count > 0 && (
-                  <text
-                    x={i * barW + barW / 2}
-                    y={y - 3}
-                    textAnchor="middle"
-                    fontSize={8}
-                    fill="currentColor"
-                    opacity={0.6}
-                  >
+                  <text x={i * barW + barW / 2} y={y - 3} textAnchor="middle" fontSize={8} fill="currentColor" opacity={0.6}>
                     {count}
                   </text>
                 )}
               </g>
             );
           })}
-
-          {/* Theoretical Gaussian curve */}
           {total >= 3 && (
             <polyline
               points={curvePoints}
               fill="none"
-              stroke="rgba(255,255,255,0.5)"
+              stroke="rgba(255,255,255,0.45)"
               strokeWidth={1.5}
               strokeDasharray="3 2"
             />
           )}
-
-          {/* Axis line */}
           <line x1={0} y1={H} x2={W} y2={H} stroke="currentColor" strokeOpacity={0.15} strokeWidth={1} />
         </svg>
       </Box>
 
-      {/* X-axis labels */}
       <Box sx={{ display: 'flex', mt: '2px' }}>
         {labels.map((n) => (
-          <Typography
-            key={n}
-            variant="caption"
-            sx={{ flex: 1, textAlign: 'center', fontSize: '0.58rem', color: 'text.secondary', lineHeight: 1 }}
-          >
+          <Typography key={n} variant="caption" sx={{ flex: 1, textAlign: 'center', fontSize: '0.58rem', color: 'text.secondary', lineHeight: 1 }}>
             {n}
           </Typography>
         ))}
       </Box>
 
-      {/* Legend + total */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5, alignItems: 'center' }}>
         {total >= 3 && (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            <Box
-              component="span"
-              sx={{
-                display: 'inline-block',
-                width: 16,
-                borderTop: '1.5px dashed rgba(255,255,255,0.5)',
-                verticalAlign: 'middle',
-              }}
-            />
-            <Typography variant="caption" sx={{ fontSize: '0.58rem', color: 'text.disabled' }}>
-              curva teórica
-            </Typography>
+            <Box component="span" sx={{ display: 'inline-block', width: 16, borderTop: '1.5px dashed rgba(255,255,255,0.45)', verticalAlign: 'middle' }} />
+            <Typography variant="caption" sx={{ fontSize: '0.58rem', color: 'text.disabled' }}>curva teórica</Typography>
           </Box>
         )}
         {total > 0 && (
@@ -215,8 +170,6 @@ interface TableGameToolsProps {
 export function TableGameTools({ tournamentId, tableId }: TableGameToolsProps) {
   const { on, emit } = useSocket(tournamentId);
 
-  // Dice state
-  // displayDice cycles randomly during animation; dice holds the final values
   const [dice, setDice] = useState<[number, number]>([1, 1]);
   const [displayDice, setDisplayDice] = useState<[number, number]>([1, 1]);
   const [rolling, setRolling] = useState(false);
@@ -225,65 +178,106 @@ export function TableGameTools({ tournamentId, tableId }: TableGameToolsProps) {
   const rollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const rollTickRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Timer state
   const [timeLeft, setTimeLeft] = useState(TIMER_SECONDS);
   const [timerRunning, setTimerRunning] = useState(false);
   const timerStartedAtRef = useRef<number | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const alertPlayedRef = useRef(false);
 
-  // ── Timer helpers ──
-  const stopInterval = () => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
+  // Three short alarm beeps at 30s remaining
+  const playAlertSound = useCallback(() => {
+    try {
+      const ctx = new AudioContext();
+      const beepCount = 3;
+      const beepDuration = 0.18;
+      const beepGap = 0.12;
+      for (let i = 0; i < beepCount; i++) {
+        const t = ctx.currentTime + i * (beepDuration + beepGap);
+        const gain = ctx.createGain();
+        gain.connect(ctx.destination);
+        gain.gain.setValueAtTime(0, t);
+        gain.gain.linearRampToValueAtTime(0.55, t + 0.01);
+        gain.gain.setValueAtTime(0.55, t + beepDuration - 0.02);
+        gain.gain.linearRampToValueAtTime(0, t + beepDuration);
+        const osc = ctx.createOscillator();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(1050, t);
+        osc.connect(gain);
+        osc.start(t);
+        osc.stop(t + beepDuration);
+        if (i === beepCount - 1) osc.onended = () => ctx.close();
+      }
+    } catch {
+      // Web Audio API not available
     }
+  }, []);
+
+  // Strident alarm when turn ends (0s)
+  const playEndSound = useCallback(() => {
+    try {
+      const ctx = new AudioContext();
+      const beepCount = 5;
+      const beepDuration = 0.15;
+      const beepGap = 0.08;
+      for (let i = 0; i < beepCount; i++) {
+        const t = ctx.currentTime + i * (beepDuration + beepGap);
+        const gain = ctx.createGain();
+        gain.connect(ctx.destination);
+        gain.gain.setValueAtTime(0, t);
+        gain.gain.linearRampToValueAtTime(0.75, t + 0.008);
+        gain.gain.setValueAtTime(0.75, t + beepDuration - 0.015);
+        gain.gain.linearRampToValueAtTime(0, t + beepDuration);
+        const osc = ctx.createOscillator();
+        osc.type = 'sawtooth';
+        // Alternates between two tones for more strident feel
+        osc.frequency.setValueAtTime(i % 2 === 0 ? 1400 : 1100, t);
+        osc.connect(gain);
+        osc.start(t);
+        osc.stop(t + beepDuration);
+        if (i === beepCount - 1) osc.onended = () => ctx.close();
+      }
+    } catch {
+      // Web Audio API not available
+    }
+  }, []);
+
+  const stopInterval = () => {
+    if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
   };
 
   const startCountdown = useCallback((startedAt: number) => {
     stopInterval();
     timerStartedAtRef.current = startedAt;
+    alertPlayedRef.current = false;
     setTimerRunning(true);
     intervalRef.current = setInterval(() => {
-      const elapsed = Math.floor((Date.now() - startedAt) / 1000);
-      const remaining = Math.max(0, TIMER_SECONDS - elapsed);
+      const remaining = Math.max(0, TIMER_SECONDS - Math.floor((Date.now() - startedAt) / 1000));
       setTimeLeft(remaining);
-      if (remaining === 0) {
-        stopInterval();
-        setTimerRunning(false);
+      if (remaining === 30 && !alertPlayedRef.current) {
+        alertPlayedRef.current = true;
+        playAlertSound();
       }
+      if (remaining === 0) { stopInterval(); setTimerRunning(false); playEndSound(); }
     }, 250);
-  }, []);
+  }, [playAlertSound, playEndSound]);
 
-  // ── Socket listeners ──
   useEffect(() => {
     const unsubDice = on('table_dice_roll', (raw) => {
       const data = raw as { tableId: string; dice1: number; dice2: number };
       if (data.tableId !== tableId) return;
-
-      // Start cycling animation
       setRolling(true);
       if (rollTickRef.current) clearInterval(rollTickRef.current);
       if (rollTimeoutRef.current) clearTimeout(rollTimeoutRef.current);
-
       rollTickRef.current = setInterval(() => {
-        setDisplayDice([
-          Math.ceil(Math.random() * 6),
-          Math.ceil(Math.random() * 6),
-        ]);
+        setDisplayDice([Math.ceil(Math.random() * 6), Math.ceil(Math.random() * 6)]);
       }, ROLL_TICK_MS);
-
-      // After animation: snap to final values
       rollTimeoutRef.current = setTimeout(() => {
         if (rollTickRef.current) clearInterval(rollTickRef.current);
         setDisplayDice([data.dice1, data.dice2]);
         setDice([data.dice1, data.dice2]);
         setHasRolled(true);
         setRolling(false);
-        setCounts((prev) => {
-          const next = [...prev];
-          next[data.dice1 + data.dice2 - 2] += 1;
-          return next;
-        });
+        setCounts((prev) => { const next = [...prev]; next[data.dice1 + data.dice2 - 2] += 1; return next; });
       }, ROLL_ANIMATION_MS);
     });
 
@@ -296,17 +290,10 @@ export function TableGameTools({ tournamentId, tableId }: TableGameToolsProps) {
     const unsubReset = on('table_timer_reset', (raw) => {
       const data = raw as { tableId: string };
       if (data.tableId !== tableId) return;
-      stopInterval();
-      setTimerRunning(false);
-      setTimeLeft(TIMER_SECONDS);
-      timerStartedAtRef.current = null;
+      stopInterval(); setTimerRunning(false); setTimeLeft(TIMER_SECONDS); timerStartedAtRef.current = null; alertPlayedRef.current = false;
     });
 
-    return () => {
-      unsubDice();
-      unsubStart();
-      unsubReset();
-    };
+    return () => { unsubDice(); unsubStart(); unsubReset(); };
   }, [on, tableId, startCountdown]);
 
   useEffect(() => () => {
@@ -315,12 +302,19 @@ export function TableGameTools({ tournamentId, tableId }: TableGameToolsProps) {
     if (rollTickRef.current) clearInterval(rollTickRef.current);
   }, []);
 
-  // ── Actions ──
   const handleRoll = () => {
     if (rolling) return;
     const d1 = Math.ceil(Math.random() * 6);
     const d2 = Math.ceil(Math.random() * 6);
     emit('table_dice_roll', { tournamentId, tableId, dice1: d1, dice2: d2 });
+  };
+
+  // Register a physical dice result (no animation, just counts the number)
+  const handleManualResult = (sum: number) => {
+    setCounts((prev) => { const next = [...prev]; next[sum - 2] += 1; return next; });
+    setHasRolled(true);
+    setDice([1, 1]); // reset display dice to neutral (physical roll)
+    setDisplayDice([1, 1]);
   };
 
   const handleTimerStart = () => {
@@ -332,73 +326,108 @@ export function TableGameTools({ tournamentId, tableId }: TableGameToolsProps) {
     emit('table_timer_reset', { tournamentId, tableId });
   };
 
-  // ── Display ──
   const mins = String(Math.floor(timeLeft / 60)).padStart(2, '0');
   const secs = String(timeLeft % 60).padStart(2, '0');
-  const timerColor =
-    timeLeft <= 30 ? 'error.main' : timeLeft <= 60 ? 'warning.main' : 'text.primary';
+  const timerColor = timeLeft <= 30 ? 'error.main' : timeLeft <= 60 ? 'warning.main' : 'text.primary';
   const total = hasRolled ? dice[0] + dice[1] : null;
 
+  const SECTION_LABEL = { color: 'text.secondary', fontWeight: 600, letterSpacing: 1, textTransform: 'uppercase' as const, fontSize: '0.7rem', mb: 1, display: 'block' };
+
   return (
-    <Card variant="outlined" sx={{ mt: 2 }}>
-      <CardContent sx={{ p: '16px !important' }}>
+    <Card variant="outlined" sx={{ mt: 0 }}>
+      <CardContent sx={{ p: '20px !important' }}>
+        <Grid container spacing={3} alignItems="flex-start">
 
-        {/* ── Timer ── */}
-        <Box sx={{ textAlign: 'center', mb: 2 }}>
-          <Typography variant="caption" color="text.secondary" display="block" mb={0.5} fontWeight={600} letterSpacing={1} textTransform="uppercase">
-            Timer
-          </Typography>
-          <Typography
-            variant="h3"
-            fontWeight={700}
-            color={timerColor}
-            sx={{ fontVariantNumeric: 'tabular-nums', letterSpacing: 4, transition: 'color 0.5s' }}
-          >
-            {mins}:{secs}
-          </Typography>
-          <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center', mt: 1 }}>
-            <Button size="small" variant="contained" onClick={handleTimerStart} disabled={timerRunning || timeLeft === 0}>
-              Iniciar
+          {/* ── Timer ── */}
+          <Grid item xs={12} sm={4}>
+            <Typography variant="caption" sx={SECTION_LABEL}>Timer</Typography>
+            <Typography
+              variant="h2"
+              fontWeight={700}
+              color={timerColor}
+              sx={{ fontVariantNumeric: 'tabular-nums', letterSpacing: 4, transition: 'color 0.5s', lineHeight: 1, mb: 1.5 }}
+            >
+              {mins}:{secs}
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <Button size="small" variant="contained" onClick={handleTimerStart} disabled={timerRunning || timeLeft === 0}>
+                Iniciar
+              </Button>
+              <Button size="small" variant="outlined" onClick={handleTimerReset}>
+                Reset
+              </Button>
+            </Box>
+          </Grid>
+
+          <Divider orientation="vertical" flexItem sx={{ mx: 1, display: { xs: 'none', sm: 'block' } }} />
+          <Divider sx={{ width: '100%', display: { xs: 'block', sm: 'none' } }} />
+
+          {/* ── Dados ── */}
+          <Grid item xs={12} sm>
+            <Typography variant="caption" sx={SECTION_LABEL}>Dados</Typography>
+
+            {/* App dice */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1.5 }}>
+              <DieFace value={displayDice[0]} rolling={rolling} />
+              <DieFace value={displayDice[1]} rolling={rolling} />
+              <Box sx={{ minWidth: 40 }}>
+                {total !== null && !rolling && (
+                  <Typography variant="h5" fontWeight={700} color="primary.main">= {total}</Typography>
+                )}
+              </Box>
+            </Box>
+            <Button variant="contained" size="small" onClick={handleRoll} disabled={rolling} sx={{ mb: 2 }}>
+              {rolling ? 'Tirando...' : 'Tirar dados'}
             </Button>
-            <Button size="small" variant="outlined" onClick={handleTimerReset}>
-              Reset
-            </Button>
-          </Box>
-        </Box>
 
-        <Divider sx={{ my: 2 }} />
+            <Divider sx={{ mb: 1.5 }} />
 
-        {/* ── Dice ── */}
-        <Box sx={{ textAlign: 'center', mb: 2 }}>
-          <Typography variant="caption" color="text.secondary" display="block" mb={1} fontWeight={600} letterSpacing={1} textTransform="uppercase">
-            Dados
-          </Typography>
-          <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, mb: 1 }}>
-            <DieFace value={displayDice[0]} rolling={rolling} />
-            <DieFace value={displayDice[1]} rolling={rolling} />
-          </Box>
-          <Box sx={{ minHeight: 32, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            {total !== null && !rolling && (
-              <Typography variant="h5" fontWeight={700} color="primary.main">
-                = {total}
-              </Typography>
-            )}
-          </Box>
-          <Button variant="contained" onClick={handleRoll} disabled={rolling} sx={{ mt: 0.5 }}>
-            {rolling ? 'Tirando...' : 'Tirar dados'}
-          </Button>
-        </Box>
+            {/* Manual entry */}
+            <Typography variant="caption" sx={{ ...SECTION_LABEL, mb: 0.75 }}>
+              Cargar resultado físico
+            </Typography>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+              {Array.from({ length: 11 }, (_, i) => i + 2).map((n) => {
+                const isHot = n === 7;
+                const isWarm = n === 6 || n === 8;
+                return (
+                  <Button
+                    key={n}
+                    size="small"
+                    variant="outlined"
+                    onClick={() => handleManualResult(n)}
+                    sx={{
+                      minWidth: 36,
+                      px: 0.5,
+                      py: 0.25,
+                      fontSize: '0.8rem',
+                      fontWeight: 700,
+                      borderColor: isHot ? 'error.main' : isWarm ? 'warning.main' : 'divider',
+                      color: isHot ? 'error.main' : isWarm ? 'warning.main' : 'text.primary',
+                      '&:hover': {
+                        bgcolor: isHot ? 'error.main' : isWarm ? 'warning.main' : 'primary.main',
+                        color: 'white',
+                        borderColor: 'transparent',
+                      },
+                    }}
+                  >
+                    {n}
+                  </Button>
+                );
+              })}
+            </Box>
+          </Grid>
 
-        <Divider sx={{ my: 2 }} />
+          <Divider orientation="vertical" flexItem sx={{ mx: 1, display: { xs: 'none', sm: 'block' } }} />
+          <Divider sx={{ width: '100%', display: { xs: 'block', sm: 'none' } }} />
 
-        {/* ── Histogram ── */}
-        <Box>
-          <Typography variant="caption" color="text.secondary" display="block" mb={1} fontWeight={600} letterSpacing={1} textTransform="uppercase">
-            Historial de tiros
-          </Typography>
-          <DiceHistogram counts={counts} />
-        </Box>
+          {/* ── Histograma ── */}
+          <Grid item xs={12} sm={5}>
+            <Typography variant="caption" sx={SECTION_LABEL}>Historial de tiros</Typography>
+            <DiceHistogram counts={counts} />
+          </Grid>
 
+        </Grid>
       </CardContent>
     </Card>
   );

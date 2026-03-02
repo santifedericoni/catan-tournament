@@ -27,6 +27,12 @@ import { useAuthStore } from '../store/auth.store';
 import type { TournamentDetail as TDetail, LeaderboardEntry, RoundDetail } from '@catan/shared';
 import { RegistrationStatus, TournamentRole, TournamentStatus } from '@catan/shared';
 
+// Tab indices — "Mi Mesa" is tab 1 only when the player is seated
+const TAB_OVERVIEW = 0;
+const TAB_MY_TABLE = 1;
+const TAB_LEADERBOARD = 2;
+const TAB_ROUNDS = 3;
+
 export function TournamentDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -37,7 +43,7 @@ export function TournamentDetail() {
   const [tournament, setTournament] = useState<TDetail | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [currentRoundDetail, setCurrentRoundDetail] = useState<RoundDetail | null>(null);
-  const [tab, setTab] = useState(0);
+  const [tab, setTab] = useState(TAB_OVERVIEW);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
@@ -54,7 +60,6 @@ export function TournamentDetail() {
       ]);
       setTournament(t);
       setLeaderboard(lb);
-      // Load in-progress round detail for table display
       const allRounds = t.stages?.flatMap((s: any) => s.rounds) ?? [];
       const inProgress = allRounds.find((r: any) => r.status === 'IN_PROGRESS');
       if (inProgress) {
@@ -143,15 +148,14 @@ export function TournamentDetail() {
 
   const isOrganizer = [TournamentRole.OWNER, TournamentRole.CO_ORGANIZER, TournamentRole.STAFF].includes(tournament.myRole as TournamentRole);
   const myReg = tournament.myRegistration;
-
   const canRegister = isAuthenticated && !myReg && tournament.status === TournamentStatus.PUBLISHED;
   const canCheckIn = myReg?.status === RegistrationStatus.APPROVED && tournament.status === TournamentStatus.CHECKIN;
 
-  // Check if current user is seated in the current round (for submission prompt)
   const myTable = currentRoundDetail?.tables?.find((t) =>
     t.seats.some((s) => s.userId === user?.id),
   );
   const myTableNeedsSubmission = myTable && ['PENDING', 'DISPUTED'].includes(myTable.resultStatus as string);
+  const isSeated = !!myTable;
 
   return (
     <Box>
@@ -169,12 +173,7 @@ export function TournamentDetail() {
 
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
             <Tooltip title="Copy tournament link">
-              <Button
-                variant="outlined"
-                size="small"
-                startIcon={<ContentCopyIcon />}
-                onClick={handleCopyLink}
-              >
+              <Button variant="outlined" size="small" startIcon={<ContentCopyIcon />} onClick={handleCopyLink}>
                 Copy link
               </Button>
             </Tooltip>
@@ -184,14 +183,10 @@ export function TournamentDetail() {
               </Button>
             )}
             {canRegister && (
-              <Button variant="contained" onClick={handleRegister} disabled={actionLoading}>
-                Register
-              </Button>
+              <Button variant="contained" onClick={handleRegister} disabled={actionLoading}>Register</Button>
             )}
             {canCheckIn && (
-              <Button variant="contained" color="success" onClick={handleCheckIn} disabled={actionLoading}>
-                Check In
-              </Button>
+              <Button variant="contained" color="success" onClick={handleCheckIn} disabled={actionLoading}>Check In</Button>
             )}
             {myReg && !canCheckIn && (
               <StatusChip status={myReg.status} type="registration" />
@@ -206,24 +201,35 @@ export function TournamentDetail() {
         )}
       </Box>
 
-
-      {/* Persistent submission prompt for seated players */}
-      {myTableNeedsSubmission && (
-        <Alert severity="warning" sx={{ mb: 2 }}>
-          The game ended — <strong>submit your scores for your table (Table {myTable!.tableNumber})</strong> in the Rounds tab.
-        </Alert>
-      )}
-
       <Divider sx={{ mb: 2 }} />
 
       <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 3 }}>
-        <Tab label="Overview" />
-        <Tab label="Leaderboard" />
-        <Tab label="Rounds" />
+        <Tab label="Overview" value={TAB_OVERVIEW} />
+        {isSeated && (
+          <Tab
+            label={
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                Mi Mesa
+                {myTableNeedsSubmission && (
+                  <Box
+                    sx={{
+                      width: 8, height: 8, borderRadius: '50%',
+                      bgcolor: 'warning.main',
+                      flexShrink: 0,
+                    }}
+                  />
+                )}
+              </Box>
+            }
+            value={TAB_MY_TABLE}
+          />
+        )}
+        <Tab label="Leaderboard" value={TAB_LEADERBOARD} />
+        <Tab label="Rounds" value={TAB_ROUNDS} />
       </Tabs>
 
-      {/* Overview tab */}
-      {tab === 0 && (
+      {/* Overview */}
+      {tab === TAB_OVERVIEW && (
         <Grid container spacing={3}>
           <Grid item xs={12} md={6}>
             <Typography variant="h6" mb={1}>Details</Typography>
@@ -237,50 +243,53 @@ export function TournamentDetail() {
         </Grid>
       )}
 
-      {/* Leaderboard tab */}
-      {tab === 1 && (
+      {/* Mi Mesa */}
+      {tab === TAB_MY_TABLE && myTable && (
+        <Box>
+          <Typography variant="h6" mb={2}>
+            Mi Mesa — Ronda {currentRoundDetail?.roundNumber}
+          </Typography>
+          <TableCard
+            table={myTable}
+            tournamentId={id!}
+            currentUserId={user?.id}
+            onRefresh={load}
+          />
+          <TableGameTools tournamentId={id!} tableId={myTable.id} />
+        </Box>
+      )}
+
+      {/* Leaderboard */}
+      {tab === TAB_LEADERBOARD && (
         <LeaderboardTable entries={leaderboard} highlightUserId={user?.id} />
       )}
 
-      {/* Rounds tab */}
-      {tab === 2 && (
+      {/* Rounds */}
+      {tab === TAB_ROUNDS && (
         <Box>
           {currentRoundDetail && (
             <Box mb={3}>
               <Typography variant="h6" mb={1}>
                 Round {currentRoundDetail.roundNumber} — In progress
               </Typography>
-              {myTableNeedsSubmission && (
-                <Alert severity="warning" sx={{ mb: 2 }}>
-                  You haven't submitted your table scores yet. Do it from your table card!
-                </Alert>
-              )}
               <Grid container spacing={2}>
-                {currentRoundDetail.tables.map((table) => {
-                  const isMyTable = table.seats.some((s) => s.userId === user?.id);
-                  return (
-                    <Grid item xs={12} md={6} key={table.id}>
-                      <TableCard
-                        table={table}
-                        tournamentId={id!}
-                        currentUserId={user?.id}
-                        onRefresh={load}
-                      />
-                      {isMyTable && (
-                        <TableGameTools tournamentId={id!} tableId={table.id} />
-                      )}
-                    </Grid>
-                  );
-                })}
+                {currentRoundDetail.tables.map((table) => (
+                  <Grid item xs={12} md={6} key={table.id}>
+                    <TableCard
+                      table={table}
+                      tournamentId={id!}
+                      currentUserId={user?.id}
+                      onRefresh={load}
+                    />
+                  </Grid>
+                ))}
               </Grid>
             </Box>
           )}
 
           {tournament.stages?.map((stage: any) => (
             <Box key={stage.id} mb={3}>
-              <Typography variant="h6" mb={2}>
-                {stage.type} Stage
-              </Typography>
+              <Typography variant="h6" mb={2}>{stage.type} Stage</Typography>
               {stage.rounds.map((round: any) => (
                 <Box key={round.id} mb={2}>
                   <Typography variant="subtitle1" fontWeight={600} mb={1}>
