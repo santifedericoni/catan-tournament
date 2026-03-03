@@ -59,6 +59,12 @@ export class CreateTournamentDto {
   tableGenerationMode?: TableGenerationMode;
 
   @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(20)
+  numberOfRounds?: number;
+
+  @IsOptional()
   @IsString()
   @MaxLength(200)
   sponsorName?: string;

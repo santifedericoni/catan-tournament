@@ -13,6 +13,7 @@ export interface CreateTournamentDto {
   format: TournamentFormat;
   tiebreakerOrder?: TiebreakerCriterion[];
   tableGenerationMode?: TableGenerationMode;
+  numberOfRounds?: number;
   sponsorName?: string;
   sponsorLogoUrl?: string;
   sponsorUrl?: string;

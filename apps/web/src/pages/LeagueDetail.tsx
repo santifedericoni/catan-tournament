@@ -33,18 +33,7 @@ import { StatusChip } from '../components/common/StatusChip';
 import type { LeagueDetail as ILeagueDetail } from '@catan/shared';
 import type { LeagueLeaderboardEntry } from '@catan/shared';
 import { TournamentFormat, TableGenerationMode } from '@catan/shared';
-
-const FORMAT_LABELS: Record<string, string> = {
-  [TournamentFormat.N_ROUNDS_TOP4_FINAL]: 'N Rounds + Top 4 Final',
-  [TournamentFormat.N_ROUNDS_TOP16_SEMIFINAL_FINAL]: 'N Rounds + Top 16 Semi + Final',
-  [TournamentFormat.SWISS]: 'Swiss',
-};
-
-const TABLE_GEN_LABELS: Record<string, string> = {
-  [TableGenerationMode.RANDOM]: 'Random (minimize repeats)',
-  [TableGenerationMode.BALANCED]: 'Balanced (by performance)',
-  [TableGenerationMode.MANUAL]: 'Manual',
-};
+import { useTranslation } from '../hooks/useTranslation';
 
 function CreateTournamentDialog({
   open,
@@ -58,6 +47,7 @@ function CreateTournamentDialog({
   leagueId: string;
 }) {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [form, setForm] = useState({
     name: '',
     startsAt: '',
@@ -84,7 +74,7 @@ function CreateTournamentDialog({
       onClose();
       navigate(`/tournaments/${tournament.id}`);
     } catch (e: unknown) {
-      setError((e as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Failed to create tournament');
+      setError((e as { response?: { data?: { message?: string } } })?.response?.data?.message || t.leagueDetail.createFailed);
     } finally {
       setLoading(false);
     }
@@ -92,14 +82,14 @@ function CreateTournamentDialog({
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>Create Tournament in League</DialogTitle>
+      <DialogTitle>{t.leagueDetail.createDialogTitle}</DialogTitle>
       <DialogContent>
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
           <Alert severity="info">
-            Format, tiebreakers, and table generation mode are inherited from the league.
+            {t.leagueDetail.createDialogDesc}
           </Alert>
           <TextField
-            label="Tournament Name"
+            label={t.leagueDetail.fieldName}
             value={form.name}
             onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
             required
@@ -107,7 +97,7 @@ function CreateTournamentDialog({
             size="small"
           />
           <TextField
-            label="Start Date & Time"
+            label={t.leagueDetail.fieldStartDate}
             type="datetime-local"
             value={form.startsAt}
             onChange={(e) => setForm((p) => ({ ...p, startsAt: e.target.value }))}
@@ -117,7 +107,7 @@ function CreateTournamentDialog({
             InputLabelProps={{ shrink: true }}
           />
           <TextField
-            label="Max Players"
+            label={t.leagueDetail.fieldMaxPlayers}
             type="number"
             value={form.maxPlayers}
             onChange={(e) => setForm((p) => ({ ...p, maxPlayers: parseInt(e.target.value) || 16 }))}
@@ -127,7 +117,7 @@ function CreateTournamentDialog({
             inputProps={{ min: 4, max: 256 }}
           />
           <TextField
-            label="Location (optional)"
+            label={t.leagueDetail.fieldLocation}
             value={form.location}
             onChange={(e) => setForm((p) => ({ ...p, location: e.target.value }))}
             fullWidth
@@ -137,9 +127,9 @@ function CreateTournamentDialog({
         </Box>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose} disabled={loading}>Cancel</Button>
+        <Button onClick={onClose} disabled={loading}>{t.common.cancel}</Button>
         <Button variant="contained" onClick={handleSubmit} disabled={loading || !form.name.trim() || !form.startsAt}>
-          {loading ? 'Creating...' : 'Create'}
+          {loading ? t.leagueDetail.createLoading : t.leagueDetail.createBtn}
         </Button>
       </DialogActions>
     </Dialog>
@@ -150,6 +140,19 @@ export function LeagueDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuthStore();
+  const { t } = useTranslation();
+
+  const FORMAT_LABELS: Record<string, string> = {
+    [TournamentFormat.N_ROUNDS_TOP4_FINAL]: t.formats.N_ROUNDS_TOP4_FINAL,
+    [TournamentFormat.N_ROUNDS_TOP16_SEMIFINAL_FINAL]: t.formats.N_ROUNDS_TOP16_SEMIFINAL_FINAL,
+    [TournamentFormat.SWISS]: t.formats.SWISS,
+  };
+
+  const TABLE_GEN_LABELS: Record<string, string> = {
+    [TableGenerationMode.RANDOM]: t.tableGenModes.RANDOM,
+    [TableGenerationMode.BALANCED]: t.tableGenModes.BALANCED,
+    [TableGenerationMode.MANUAL]: t.tableGenModes.MANUAL,
+  };
 
   const [league, setLeague] = useState<ILeagueDetail | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeagueLeaderboardEntry[]>([]);
@@ -165,7 +168,7 @@ export function LeagueDetail() {
       const data = await leaguesApi.get(id);
       setLeague(data);
     } catch {
-      setError('Failed to load league');
+      setError(t.leagueDetail.failedToLoad);
     } finally {
       setLoading(false);
     }
@@ -194,7 +197,7 @@ export function LeagueDetail() {
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3, flexWrap: 'wrap', gap: 2 }}>
         <Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-            <Chip label="League" size="small" color="secondary" />
+            <Chip label={t.leagueDetail.league} size="small" color="secondary" />
             {league.myRole && (
               <Chip
                 label={league.myRole.replace('_', ' ')}
@@ -211,16 +214,16 @@ export function LeagueDetail() {
         </Box>
         {isOwner && (
           <Button variant="outlined" onClick={() => navigate(`/leagues/${id}/edit`)}>
-            Edit League
+            {t.leagueDetail.editLeague}
           </Button>
         )}
       </Box>
 
       <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 3 }}>
-        <Tab label="Overview" />
-        <Tab label={`Tournaments (${league.tournaments?.length ?? 0})`} />
-        <Tab label="Leaderboard" />
-        {isOwner && <Tab label="Co-organizers" />}
+        <Tab label={t.leagueDetail.tabOverview} />
+        <Tab label={`${t.leagueDetail.tabTournaments} (${league.tournaments?.length ?? 0})`} />
+        <Tab label={t.leagueDetail.tabLeaderboard} />
+        {isOwner && <Tab label={t.leagueDetail.tabOrganizers} />}
       </Tabs>
 
       {/* Overview tab */}
@@ -229,7 +232,7 @@ export function LeagueDetail() {
           <Grid item xs={12} sm={6}>
             <Card variant="outlined">
               <CardContent>
-                <Typography variant="subtitle2" color="text.secondary" gutterBottom>Format</Typography>
+                <Typography variant="subtitle2" color="text.secondary" gutterBottom>{t.leagueDetail.detailFormat}</Typography>
                 <Typography variant="h6">{FORMAT_LABELS[league.format] ?? league.format}</Typography>
               </CardContent>
             </Card>
@@ -237,7 +240,7 @@ export function LeagueDetail() {
           <Grid item xs={12} sm={6}>
             <Card variant="outlined">
               <CardContent>
-                <Typography variant="subtitle2" color="text.secondary" gutterBottom>Table Generation</Typography>
+                <Typography variant="subtitle2" color="text.secondary" gutterBottom>{t.leagueDetail.detailTableGen}</Typography>
                 <Typography variant="h6">{TABLE_GEN_LABELS[league.tableGenerationMode] ?? league.tableGenerationMode}</Typography>
               </CardContent>
             </Card>
@@ -245,7 +248,7 @@ export function LeagueDetail() {
           <Grid item xs={12} sm={6}>
             <Card variant="outlined">
               <CardContent>
-                <Typography variant="subtitle2" color="text.secondary" gutterBottom>Tournaments</Typography>
+                <Typography variant="subtitle2" color="text.secondary" gutterBottom>{t.leagueDetail.detailTournaments}</Typography>
                 <Typography variant="h6">{league.tournamentCount}</Typography>
               </CardContent>
             </Card>
@@ -253,7 +256,7 @@ export function LeagueDetail() {
           {league.creator && (
             <Grid item xs={12}>
               <Typography variant="body2" color="text.secondary">
-                Created by {league.creator.displayName}
+                {`${t.leagueDetail.detailCreatedBy} ${league.creator.displayName}`}
               </Typography>
             </Grid>
           )}
@@ -266,35 +269,37 @@ export function LeagueDetail() {
           {isOrganizerOrOwner && (
             <Box sx={{ mb: 3 }}>
               <Button variant="contained" onClick={() => setCreateDialogOpen(true)}>
-                + Create Tournament
+                {t.leagueDetail.createTournament}
               </Button>
             </Box>
           )}
           {!league.tournaments || league.tournaments.length === 0 ? (
             <Box sx={{ textAlign: 'center', py: 8 }}>
-              <Typography variant="h6" color="text.secondary">No tournaments yet</Typography>
+              <Typography variant="h6" color="text.secondary">{t.leagueDetail.noTournaments}</Typography>
               {isOrganizerOrOwner && (
                 <Typography variant="body2" color="text.secondary" mt={1}>
-                  Create the first tournament in this league.
+                  {t.leagueDetail.noTournamentsDesc}
                 </Typography>
               )}
             </Box>
           ) : (
             <Grid container spacing={2}>
-              {league.tournaments.map((t) => (
-                <Grid item xs={12} sm={6} md={4} key={t.id}>
+              {league.tournaments.map((tournament) => (
+                <Grid item xs={12} sm={6} md={4} key={tournament.id}>
                   <Card sx={{ height: '100%' }}>
-                    <CardActionArea onClick={() => navigate(`/tournaments/${t.id}`)} sx={{ height: '100%' }}>
+                    <CardActionArea onClick={() => navigate(`/tournaments/${tournament.id}`)} sx={{ height: '100%' }}>
                       <CardContent>
                         <Box sx={{ mb: 1 }}>
-                          <StatusChip status={t.status} />
+                          <StatusChip status={tournament.status} />
                         </Box>
-                        <Typography variant="h6" fontWeight={600} noWrap>{t.name}</Typography>
+                        <Typography variant="h6" fontWeight={600} noWrap>{tournament.name}</Typography>
                         <Typography variant="body2" color="text.secondary" mt={0.5}>
-                          {new Date(t.startsAt).toLocaleDateString()}
+                          {new Date(tournament.startsAt).toLocaleDateString()}
                         </Typography>
                         <Typography variant="body2" color="text.secondary" mt={0.5}>
-                          {t.registeredCount}/{t.maxPlayers} players
+                          {t.leagueDetail.players
+                            .replace('{registered}', String(tournament.registeredCount))
+                            .replace('{max}', String(tournament.maxPlayers))}
                         </Typography>
                       </CardContent>
                     </CardActionArea>
@@ -320,9 +325,9 @@ export function LeagueDetail() {
             <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}><CircularProgress /></Box>
           ) : leaderboard.length === 0 ? (
             <Box sx={{ textAlign: 'center', py: 8 }}>
-              <Typography variant="h6" color="text.secondary">No results yet</Typography>
+              <Typography variant="h6" color="text.secondary">{t.leagueDetail.noResults}</Typography>
               <Typography variant="body2" color="text.secondary" mt={1}>
-                The league leaderboard will appear after the first tournament completes.
+                {t.leagueDetail.noResultsDesc}
               </Typography>
             </Box>
           ) : (
@@ -346,17 +351,19 @@ function LeagueLeaderboardTable({
   entries: LeagueLeaderboardEntry[];
   highlightUserId?: string;
 }) {
+  const { t } = useTranslation();
+
   return (
     <TableContainer component={Paper} variant="outlined">
       <Table size="small">
         <TableHead>
           <TableRow sx={{ bgcolor: 'primary.main' }}>
-            <TableCell sx={{ color: 'white', fontWeight: 700 }}>#</TableCell>
-            <TableCell sx={{ color: 'white', fontWeight: 700 }}>Player</TableCell>
-            <TableCell sx={{ color: 'white', fontWeight: 700 }} align="right">Total VP</TableCell>
-            <TableCell sx={{ color: 'white', fontWeight: 700 }} align="right">Total Pts Catan</TableCell>
-            <TableCell sx={{ color: 'white', fontWeight: 700 }} align="right">Tournaments</TableCell>
-            <TableCell sx={{ color: 'white', fontWeight: 700 }} align="right">Elo</TableCell>
+            <TableCell sx={{ color: 'white', fontWeight: 700 }}>{t.leagueDetail.colRank}</TableCell>
+            <TableCell sx={{ color: 'white', fontWeight: 700 }}>{t.leagueDetail.colPlayer}</TableCell>
+            <TableCell sx={{ color: 'white', fontWeight: 700 }} align="right">{t.leagueDetail.colTotalVP}</TableCell>
+            <TableCell sx={{ color: 'white', fontWeight: 700 }} align="right">{t.leagueDetail.colTotalPts}</TableCell>
+            <TableCell sx={{ color: 'white', fontWeight: 700 }} align="right">{t.leagueDetail.colTournaments}</TableCell>
+            <TableCell sx={{ color: 'white', fontWeight: 700 }} align="right">{t.leagueDetail.colElo}</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
@@ -385,7 +392,7 @@ function LeagueLeaderboardTable({
                       {entry.displayName}
                     </Typography>
                     {entry.isGuest && (
-                      <Chip label="guest" size="small" variant="outlined" color="default" sx={{ fontSize: '0.65rem', height: 18 }} />
+                      <Chip label={t.common.guest} size="small" variant="outlined" color="default" sx={{ fontSize: '0.65rem', height: 18 }} />
                     )}
                   </Box>
                 </TableCell>
@@ -413,6 +420,7 @@ function LeagueLeaderboardTable({
 }
 
 function CoOrganizersPanel({ leagueId }: { leagueId: string }) {
+  const { t } = useTranslation();
   const [organizers, setOrganizers] = useState<any[]>([]);
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
@@ -468,15 +476,15 @@ function CoOrganizersPanel({ leagueId }: { leagueId: string }) {
 
   return (
     <Box>
-      <Typography variant="h6" mb={2}>Co-organizers</Typography>
+      <Typography variant="h6" mb={2}>{t.leagueDetail.tabOrganizers}</Typography>
       <TableContainer component={Paper} variant="outlined" sx={{ mb: 3 }}>
         <Table size="small">
           <TableHead>
             <TableRow>
-              <TableCell>Name</TableCell>
-              <TableCell>Email</TableCell>
-              <TableCell>Role</TableCell>
-              <TableCell align="right">Actions</TableCell>
+              <TableCell>{t.leagueDetail.colName}</TableCell>
+              <TableCell>{t.leagueDetail.colEmail}</TableCell>
+              <TableCell>{t.leagueDetail.colRole}</TableCell>
+              <TableCell align="right">{t.leagueDetail.colActions}</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -490,7 +498,7 @@ function CoOrganizersPanel({ leagueId }: { leagueId: string }) {
                 <TableCell align="right">
                   {org.role === 'CO_ORGANIZER' && (
                     <Button size="small" color="error" variant="outlined" onClick={() => handleRemove(org.userId)} disabled={loading}>
-                      Remove
+                      {t.leagueDetail.removeOrg}
                     </Button>
                   )}
                 </TableCell>
@@ -501,18 +509,18 @@ function CoOrganizersPanel({ leagueId }: { leagueId: string }) {
       </TableContainer>
 
       <Divider sx={{ mb: 2 }} />
-      <Typography variant="subtitle2" mb={1}>Add co-organizer</Typography>
+      <Typography variant="subtitle2" mb={1}>{t.leagueDetail.addCoOrg}</Typography>
       <Box sx={{ display: 'flex', gap: 1 }}>
         <TextField
           size="small"
-          label="User email"
+          label={t.leagueDetail.userEmail}
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           sx={{ minWidth: 240 }}
           onKeyDown={(e) => { if (e.key === 'Enter') handleAdd(); }}
         />
         <Button variant="contained" onClick={handleAdd} disabled={loading || !email.trim()}>
-          Add
+          {t.common.add}
         </Button>
       </Box>
       {error && <Alert severity="error" sx={{ mt: 1 }}>{error}</Alert>}

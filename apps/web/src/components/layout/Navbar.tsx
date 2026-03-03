@@ -9,14 +9,22 @@ import {
   Avatar,
   Menu,
   MenuItem,
+  Tooltip,
 } from '@mui/material';
+import DarkModeIcon from '@mui/icons-material/DarkMode';
+import LightModeIcon from '@mui/icons-material/LightMode';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
+import { usePreferencesStore } from '../../store/preferences.store';
+import { useTranslation } from '../../hooks/useTranslation';
 
 export function Navbar() {
   const { user, isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
+
+  const { themeMode, toggleTheme, language, setLanguage } = usePreferencesStore();
+  const { t } = useTranslation();
 
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -42,11 +50,30 @@ export function Navbar() {
           🏰 Catan Tournament
         </Typography>
 
-        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+        <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
+          {/* Language toggle */}
+          <Tooltip title={t.common.language}>
+            <Button
+              color="inherit"
+              size="small"
+              onClick={() => setLanguage(language === 'en' ? 'es' : 'en')}
+              sx={{ minWidth: 40, fontWeight: 700, fontSize: 13 }}
+            >
+              {language === 'en' ? 'ES' : 'EN'}
+            </Button>
+          </Tooltip>
+
+          {/* Theme toggle */}
+          <Tooltip title={themeMode === 'light' ? t.common.darkMode : t.common.lightMode}>
+            <IconButton color="inherit" onClick={toggleTheme}>
+              {themeMode === 'light' ? <DarkModeIcon /> : <LightModeIcon />}
+            </IconButton>
+          </Tooltip>
+
           {isAuthenticated && user ? (
             <>
-              <Button color="inherit" component={Link} to="/tournaments/create">
-                Create Tournament
+              <Button color="inherit" component={Link} to="/create" sx={{ ml: 0.5 }}>
+                {t.nav.createTournament}
               </Button>
               <IconButton onClick={handleMenuOpen} sx={{ p: 0, ml: 1 }}>
                 <Avatar sx={{ bgcolor: 'secondary.main', width: 36, height: 36, fontSize: 14 }}>
@@ -66,15 +93,15 @@ export function Navbar() {
                     navigate(`/profile/${user.id}`);
                   }}
                 >
-                  My Profile
+                  {t.nav.myProfile}
                 </MenuItem>
-                <MenuItem onClick={handleLogout}>Logout</MenuItem>
+                <MenuItem onClick={handleLogout}>{t.nav.logout}</MenuItem>
               </Menu>
             </>
           ) : (
             <>
               <Button color="inherit" component={Link} to="/login">
-                Login
+                {t.nav.login}
               </Button>
               <Button
                 variant="contained"
@@ -83,7 +110,7 @@ export function Navbar() {
                 to="/register"
                 sx={{ ml: 1 }}
               >
-                Sign Up
+                {t.nav.signUp}
               </Button>
             </>
           )}

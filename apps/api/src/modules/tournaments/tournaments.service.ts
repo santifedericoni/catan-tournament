@@ -46,6 +46,7 @@ export class TournamentsService {
           format: dto.format,
           tiebreakerOrder: dto.tiebreakerOrder ?? ['points', 'wins', 'opponent_strength', 'avg_position'],
           tableGenerationMode: dto.tableGenerationMode ?? 'RANDOM',
+          numberOfRounds: dto.numberOfRounds ?? null,
           createdBy: actorId,
         },
       });

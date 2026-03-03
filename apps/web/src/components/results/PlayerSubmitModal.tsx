@@ -15,6 +15,7 @@ import {
 } from '@mui/material';
 import { roundsApi } from '../../api/rounds.api';
 import type { SeatDetail } from '@catan/shared';
+import { useTranslation } from '../../hooks/useTranslation';
 
 interface PlayerSubmitModalProps {
   open: boolean;
@@ -44,6 +45,7 @@ export function PlayerSubmitModal({
   tableNumber,
   seats,
 }: PlayerSubmitModalProps) {
+  const { t } = useTranslation();
   const [scores, setScores] = useState<Record<string, number>>(
     Object.fromEntries(seats.map((s) => [getParticipantId(s), 0])),
   );
@@ -76,9 +78,9 @@ export function PlayerSubmitModal({
     if (pos !== 1) return null;
     const pts = scores[pid] ?? 0;
     const tiedAt9 = endedReason === 'TIME_LIMIT' && isSharedFirst && pts === 9;
-    if (tiedAt9) return '½ VP';
-    if (endedReason === 'NORMAL' && pts >= 10) return '1 VP';
-    return '½ VP';
+    if (tiedAt9) return t.playerSubmit.halfVP;
+    if (endedReason === 'NORMAL' && pts >= 10) return t.playerSubmit.oneVP;
+    return t.playerSubmit.halfVP;
   };
 
   const handleSubmit = async () => {
@@ -92,7 +94,7 @@ export function PlayerSubmitModal({
     } catch (e: unknown) {
       setError(
         (e as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-          'Error submitting scores',
+          t.playerSubmit.errorSubmit,
       );
     } finally {
       setSubmitting(false);
@@ -102,16 +104,16 @@ export function PlayerSubmitModal({
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle>
-        Submit scores — Table {tableNumber}
+        {t.playerSubmit.title.replace('{n}', String(tableNumber))}
       </DialogTitle>
       <DialogContent>
         <Alert severity="info" sx={{ mb: 2 }}>
-          Enter the real Catan points for each player as the game ended.
+          {t.playerSubmit.helpText}
         </Alert>
 
         <Box sx={{ mb: 2 }}>
           <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
-            How did the game end?
+            {t.playerSubmit.gameEnd}
           </Typography>
           <ToggleButtonGroup
             value={endedReason}
@@ -119,8 +121,8 @@ export function PlayerSubmitModal({
             onChange={(_, v) => { if (v) setEndedReason(v); }}
             size="small"
           >
-            <ToggleButton value="NORMAL">Normal (someone reached 10+)</ToggleButton>
-            <ToggleButton value="TIME_LIMIT">By time</ToggleButton>
+            <ToggleButton value="NORMAL">{t.playerSubmit.gameEndNormal}</ToggleButton>
+            <ToggleButton value="TIME_LIMIT">{t.playerSubmit.gameEndTime}</ToggleButton>
           </ToggleButtonGroup>
         </Box>
 
@@ -153,9 +155,9 @@ export function PlayerSubmitModal({
                 </Typography>
                 <TextField
                   size="small"
-                  label="Catan Pts"
+                  label={t.playerSubmit.catanPts}
                   value={scores[pid] === 0 ? '' : scores[pid]}
-                  placeholder="0–10"
+                  placeholder={t.playerSubmit.ptsRange}
                   onChange={(e) => {
                     const raw = e.target.value.replace(/\D/g, '');
                     const val = raw === '' ? 0 : Math.min(10, parseInt(raw, 10));
@@ -168,8 +170,8 @@ export function PlayerSubmitModal({
                   <Chip
                     label={vp}
                     size="small"
-                    color={vp === '1 VP' ? 'primary' : 'warning'}
-                    variant={vp === '1 VP' ? 'filled' : 'outlined'}
+                    color={vp === t.playerSubmit.oneVP ? 'primary' : 'warning'}
+                    variant={vp === t.playerSubmit.oneVP ? 'filled' : 'outlined'}
                   />
                 )}
               </Box>
@@ -180,9 +182,9 @@ export function PlayerSubmitModal({
         {error && <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>}
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose} disabled={submitting}>Cancel</Button>
+        <Button onClick={onClose} disabled={submitting}>{t.playerSubmit.cancel}</Button>
         <Button variant="contained" onClick={handleSubmit} disabled={submitting}>
-          {submitting ? 'Submitting...' : 'Submit scores'}
+          {submitting ? t.playerSubmit.submitting : t.playerSubmit.submit}
         </Button>
       </DialogActions>
     </Dialog>

@@ -15,16 +15,12 @@ import {
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { leaguesApi } from '../api/leagues.api';
-import { TournamentFormat, TableGenerationMode } from '@catan/shared';
-
-const FORMAT_LABELS: Record<string, string> = {
-  [TournamentFormat.N_ROUNDS_TOP4_FINAL]: 'N Rounds + Top 4 Final',
-  [TournamentFormat.N_ROUNDS_TOP16_SEMIFINAL_FINAL]: 'N Rounds + Top 16 Semi + Final',
-  [TournamentFormat.SWISS]: 'Swiss',
-};
+import { TournamentFormat } from '@catan/shared';
+import { useTranslation } from '../hooks/useTranslation';
 
 export function LeagueCreate() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -32,8 +28,13 @@ export function LeagueCreate() {
     name: '',
     description: '',
     format: TournamentFormat.N_ROUNDS_TOP4_FINAL,
-    tableGenerationMode: TableGenerationMode.RANDOM,
   });
+
+  const FORMAT_LABELS: Record<string, string> = {
+    [TournamentFormat.N_ROUNDS_TOP4_FINAL]: t.formats.N_ROUNDS_TOP4_FINAL,
+    [TournamentFormat.N_ROUNDS_TOP16_SEMIFINAL_FINAL]: t.formats.N_ROUNDS_TOP16_SEMIFINAL_FINAL,
+    [TournamentFormat.SWISS]: t.formats.SWISS,
+  };
 
   const handleChange = (field: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setForm((prev) => ({ ...prev, [field]: e.target.value }));
@@ -48,13 +49,12 @@ export function LeagueCreate() {
         name: form.name,
         description: form.description || undefined,
         format: form.format,
-        tableGenerationMode: form.tableGenerationMode,
         tiebreakerOrder: ['victory_points', 'wins', 'opponent_strength', 'avg_position'],
       });
       navigate(`/leagues/${league.id}`);
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      setError(msg || 'Failed to create league');
+      setError(msg || t.leagueCreate.failed);
     } finally {
       setLoading(false);
     }
@@ -62,10 +62,9 @@ export function LeagueCreate() {
 
   return (
     <Box maxWidth="md" mx="auto">
-      <Typography variant="h4" fontWeight={700} mb={3}>Create League</Typography>
+      <Typography variant="h4" fontWeight={700} mb={3}>{t.leagueCreate.title}</Typography>
       <Typography variant="body1" color="text.secondary" mb={3}>
-        A league groups multiple tournaments with the same format and rules. Each tournament within
-        the league can have different participants and player counts.
+        {t.leagueCreate.subtitle}
       </Typography>
 
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
@@ -73,11 +72,11 @@ export function LeagueCreate() {
       <Box component="form" onSubmit={handleSubmit}>
         <Card sx={{ mb: 3 }}>
           <CardContent>
-            <Typography variant="h6" mb={2}>Basic Info</Typography>
+            <Typography variant="h6" mb={2}>{t.leagueCreate.basicInfo}</Typography>
             <Grid container spacing={2}>
               <Grid item xs={12}>
                 <TextField
-                  label="League Name"
+                  label={t.leagueCreate.name}
                   value={form.name}
                   onChange={handleChange('name')}
                   required
@@ -86,7 +85,7 @@ export function LeagueCreate() {
               </Grid>
               <Grid item xs={12}>
                 <TextField
-                  label="Description"
+                  label={t.leagueCreate.description}
                   value={form.description}
                   onChange={handleChange('description')}
                   fullWidth
@@ -100,17 +99,17 @@ export function LeagueCreate() {
 
         <Card sx={{ mb: 3 }}>
           <CardContent>
-            <Typography variant="h6" mb={2}>Shared Configuration</Typography>
+            <Typography variant="h6" mb={2}>{t.leagueCreate.sharedConfig}</Typography>
             <Typography variant="body2" color="text.secondary" mb={2}>
-              These settings will apply to all tournaments created within this league.
+              {t.leagueCreate.sharedConfigDesc}
             </Typography>
             <Grid container spacing={2}>
-              <Grid item xs={12} sm={6}>
+              <Grid item xs={12}>
                 <FormControl fullWidth>
-                  <InputLabel>Format</InputLabel>
+                  <InputLabel>{t.leagueCreate.format}</InputLabel>
                   <Select
                     value={form.format}
-                    label="Format"
+                    label={t.leagueCreate.format}
                     onChange={(e) => setForm((p) => ({ ...p, format: e.target.value as TournamentFormat }))}
                   >
                     {Object.entries(FORMAT_LABELS).map(([v, l]) => (
@@ -119,26 +118,12 @@ export function LeagueCreate() {
                   </Select>
                 </FormControl>
               </Grid>
-              <Grid item xs={12} sm={6}>
-                <FormControl fullWidth>
-                  <InputLabel>Table Generation</InputLabel>
-                  <Select
-                    value={form.tableGenerationMode}
-                    label="Table Generation"
-                    onChange={(e) => setForm((p) => ({ ...p, tableGenerationMode: e.target.value as TableGenerationMode }))}
-                  >
-                    <MenuItem value={TableGenerationMode.RANDOM}>Random (minimize repeats)</MenuItem>
-                    <MenuItem value={TableGenerationMode.BALANCED}>Balanced (by performance)</MenuItem>
-                    <MenuItem value={TableGenerationMode.MANUAL}>Manual</MenuItem>
-                  </Select>
-                </FormControl>
-              </Grid>
             </Grid>
           </CardContent>
         </Card>
 
         <Button type="submit" variant="contained" size="large" disabled={loading} fullWidth>
-          {loading ? 'Creating...' : 'Create League'}
+          {loading ? t.leagueCreate.loading : t.leagueCreate.submit}
         </Button>
       </Box>
     </Box>

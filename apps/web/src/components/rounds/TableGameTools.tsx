@@ -9,6 +9,7 @@ import {
   Grid,
 } from '@mui/material';
 import { useSocket } from '../../hooks/useSocket';
+import { useTranslation } from '../../hooks/useTranslation';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 const TIMER_SECONDS = 120;
@@ -78,7 +79,7 @@ function DieFace({ value, rolling, size = 72 }: { value: number; rolling: boolea
 // ─── Histogram ───────────────────────────────────────────────────────────────
 const THEORETICAL_PROBS = [1, 2, 3, 4, 5, 6, 5, 4, 3, 2, 1].map((n) => n / 36);
 
-function DiceHistogram({ counts }: { counts: number[] }) {
+function DiceHistogram({ counts, timesOne, timesMany, theoreticalCurve }: { counts: number[]; timesOne: string; timesMany: string; theoreticalCurve: string }) {
   const labels = Array.from({ length: 11 }, (_, i) => i + 2);
   const total = counts.reduce((a, b) => a + b, 0);
   const maxCount = Math.max(...counts, 1);
@@ -108,7 +109,7 @@ function DiceHistogram({ counts }: { counts: number[] }) {
             const fill = isHot ? '#f44336' : isWarm ? '#ff9800' : '#1976d2';
             return (
               <g key={n}>
-                <title>{`${n}: ${count} ${count === 1 ? 'vez' : 'veces'}`}</title>
+                <title>{`${n}: ${count} ${count === 1 ? timesOne : timesMany}`}</title>
                 <rect
                   x={x} y={y}
                   width={barW - pad * 2} height={barH}
@@ -148,12 +149,12 @@ function DiceHistogram({ counts }: { counts: number[] }) {
         {total >= 3 && (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
             <Box component="span" sx={{ display: 'inline-block', width: 16, borderTop: '1.5px dashed rgba(255,255,255,0.45)', verticalAlign: 'middle' }} />
-            <Typography variant="caption" sx={{ fontSize: '0.58rem', color: 'text.disabled' }}>curva teórica</Typography>
+            <Typography variant="caption" sx={{ fontSize: '0.58rem', color: 'text.disabled' }}>{theoreticalCurve}</Typography>
           </Box>
         )}
         {total > 0 && (
           <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.6rem', ml: 'auto' }}>
-            {total} tiro{total !== 1 ? 's' : ''}
+            {total} {total !== 1 ? timesMany : timesOne}
           </Typography>
         )}
       </Box>
@@ -169,6 +170,7 @@ interface TableGameToolsProps {
 
 export function TableGameTools({ tournamentId, tableId }: TableGameToolsProps) {
   const { on, emit } = useSocket(tournamentId);
+  const { t } = useTranslation();
 
   const [dice, setDice] = useState<[number, number]>([1, 1]);
   const [displayDice, setDisplayDice] = useState<[number, number]>([1, 1]);
@@ -340,7 +342,7 @@ export function TableGameTools({ tournamentId, tableId }: TableGameToolsProps) {
 
           {/* ── Timer ── */}
           <Grid item xs={12} sm={4}>
-            <Typography variant="caption" sx={SECTION_LABEL}>Timer</Typography>
+            <Typography variant="caption" sx={SECTION_LABEL}>{t.tableGameTools.timer}</Typography>
             <Typography
               variant="h2"
               fontWeight={700}
@@ -351,10 +353,10 @@ export function TableGameTools({ tournamentId, tableId }: TableGameToolsProps) {
             </Typography>
             <Box sx={{ display: 'flex', gap: 1 }}>
               <Button size="small" variant="contained" onClick={handleTimerStart} disabled={timerRunning || timeLeft === 0}>
-                Iniciar
+                {t.tableGameTools.start}
               </Button>
               <Button size="small" variant="outlined" onClick={handleTimerReset}>
-                Reset
+                {t.tableGameTools.reset}
               </Button>
             </Box>
           </Grid>
@@ -362,9 +364,9 @@ export function TableGameTools({ tournamentId, tableId }: TableGameToolsProps) {
           <Divider orientation="vertical" flexItem sx={{ mx: 1, display: { xs: 'none', sm: 'block' } }} />
           <Divider sx={{ width: '100%', display: { xs: 'block', sm: 'none' } }} />
 
-          {/* ── Dados ── */}
+          {/* ── Dice ── */}
           <Grid item xs={12} sm>
-            <Typography variant="caption" sx={SECTION_LABEL}>Dados</Typography>
+            <Typography variant="caption" sx={SECTION_LABEL}>{t.tableGameTools.dice}</Typography>
 
             {/* App dice */}
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1.5 }}>
@@ -377,14 +379,14 @@ export function TableGameTools({ tournamentId, tableId }: TableGameToolsProps) {
               </Box>
             </Box>
             <Button variant="contained" size="small" onClick={handleRoll} disabled={rolling} sx={{ mb: 2 }}>
-              {rolling ? 'Tirando...' : 'Tirar dados'}
+              {rolling ? t.tableGameTools.rolling : t.tableGameTools.rollDice}
             </Button>
 
             <Divider sx={{ mb: 1.5 }} />
 
             {/* Manual entry */}
             <Typography variant="caption" sx={{ ...SECTION_LABEL, mb: 0.75 }}>
-              Cargar resultado físico
+              {t.tableGameTools.loadPhysical}
             </Typography>
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
               {Array.from({ length: 11 }, (_, i) => i + 2).map((n) => {
@@ -421,10 +423,15 @@ export function TableGameTools({ tournamentId, tableId }: TableGameToolsProps) {
           <Divider orientation="vertical" flexItem sx={{ mx: 1, display: { xs: 'none', sm: 'block' } }} />
           <Divider sx={{ width: '100%', display: { xs: 'block', sm: 'none' } }} />
 
-          {/* ── Histograma ── */}
+          {/* ── Roll History ── */}
           <Grid item xs={12} sm={5}>
-            <Typography variant="caption" sx={SECTION_LABEL}>Historial de tiros</Typography>
-            <DiceHistogram counts={counts} />
+            <Typography variant="caption" sx={SECTION_LABEL}>{t.tableGameTools.rollHistory}</Typography>
+            <DiceHistogram
+              counts={counts}
+              timesOne={t.tableGameTools.timesOne}
+              timesMany={t.tableGameTools.timesMany}
+              theoreticalCurve={t.tableGameTools.theoreticalCurve}
+            />
           </Grid>
 
         </Grid>

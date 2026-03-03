@@ -12,10 +12,12 @@ import {
 } from '@mui/material';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { useTranslation } from '../hooks/useTranslation';
 
 export function Register() {
   const { register } = useAuth();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [form, setForm] = useState({
     email: '',
     password: '',
@@ -45,7 +47,7 @@ export function Register() {
       navigate('/');
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      setError(msg || 'Registration failed. Please try again.');
+      setError(msg || t.register.failed);
     } finally {
       setLoading(false);
     }
@@ -56,34 +58,34 @@ export function Register() {
       <Card sx={{ maxWidth: 480, width: '100%', mx: 2 }}>
         <CardContent sx={{ p: 4 }}>
           <Typography variant="h5" fontWeight={700} mb={3} textAlign="center">
-            🏰 Create Account
+            {t.register.title}
           </Typography>
 
           {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
           <Box component="form" onSubmit={handleSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <TextField label="Display Name" value={form.displayName} onChange={handleChange('displayName')} required fullWidth />
-            <TextField label="Email" type="email" value={form.email} onChange={handleChange('email')} required fullWidth />
-            <TextField label="Password" type="password" value={form.password} onChange={handleChange('password')} required fullWidth helperText="Minimum 8 characters" />
-            <TextField label="Alias / Nickname (optional)" value={form.alias} onChange={handleChange('alias')} fullWidth />
+            <TextField label={t.register.displayName} value={form.displayName} onChange={handleChange('displayName')} required fullWidth />
+            <TextField label={t.register.email} type="email" value={form.email} onChange={handleChange('email')} required fullWidth />
+            <TextField label={t.register.password} type="password" value={form.password} onChange={handleChange('password')} required fullWidth helperText={t.register.passwordHelper} />
+            <TextField label={t.register.alias} value={form.alias} onChange={handleChange('alias')} fullWidth />
             <Grid container spacing={2}>
               <Grid item xs={6}>
-                <TextField label="Country (optional)" value={form.country} onChange={handleChange('country')} fullWidth />
+                <TextField label={t.register.country} value={form.country} onChange={handleChange('country')} fullWidth />
               </Grid>
               <Grid item xs={6}>
-                <TextField label="City (optional)" value={form.city} onChange={handleChange('city')} fullWidth />
+                <TextField label={t.register.city} value={form.city} onChange={handleChange('city')} fullWidth />
               </Grid>
             </Grid>
 
             <Button type="submit" variant="contained" fullWidth disabled={loading} size="large">
-              {loading ? 'Creating account...' : 'Create Account'}
+              {loading ? t.register.loading : t.register.submit}
             </Button>
           </Box>
 
           <Typography variant="body2" textAlign="center" mt={2}>
-            Already have an account?{' '}
+            {t.register.hasAccount}{' '}
             <Link component={RouterLink} to="/login">
-              Login
+              {t.register.login}
             </Link>
           </Typography>
         </CardContent>

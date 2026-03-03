@@ -206,6 +206,7 @@ model Tournament {
   format              TournamentFormat
   tiebreakerOrder     Json                @default("[\"points\",\"wins\",\"opponent_strength\",\"avg_position\"]") @map("tiebreaker_order")
   tableGenerationMode TableGenerationMode @default(RANDOM) @map("table_generation_mode")
+  numberOfRounds      Int?                @map("number_of_rounds")
   sponsorName         String?             @map("sponsor_name")
   sponsorLogoUrl      String?             @map("sponsor_logo_url")
   sponsorUrl          String?             @map("sponsor_url")

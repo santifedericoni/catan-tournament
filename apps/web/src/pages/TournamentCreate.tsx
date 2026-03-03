@@ -14,19 +14,57 @@ import {
   Grid,
   Card,
   CardContent,
+  Autocomplete,
 } from '@mui/material';
+import { rawTimeZones } from '@vvo/tzdb';
 import { useNavigate } from 'react-router-dom';
 import { tournamentsApi } from '../api/tournaments.api';
-import { TournamentFormat, TableGenerationMode } from '@catan/shared';
+import { TournamentFormat } from '@catan/shared';
+import { useTranslation } from '../hooks/useTranslation';
 
-const FORMAT_LABELS: Record<string, string> = {
-  [TournamentFormat.N_ROUNDS_TOP4_FINAL]: 'N Rounds + Top 4 Final',
-  [TournamentFormat.N_ROUNDS_TOP16_SEMIFINAL_FINAL]: 'N Rounds + Top 16 Semi + Final',
-  [TournamentFormat.SWISS]: 'Swiss',
-};
+interface TzOption {
+  label: string;   // display: "(GMT+X) Name - City, City"
+  value: string;   // IANA name e.g. "America/Argentina/Buenos_Aires"
+}
+
+function buildTzOptions(): TzOption[] {
+  // Deduplicate by IANA name (rawTimeZones has entries grouped by alias)
+  const seen = new Set<string>();
+  return rawTimeZones
+    .filter((tz) => {
+      if (seen.has(tz.name)) return false;
+      seen.add(tz.name);
+      return true;
+    })
+    .map((tz) => {
+      const sign = tz.rawOffsetInMinutes >= 0 ? '+' : '-';
+      const abs = Math.abs(tz.rawOffsetInMinutes);
+      const h = String(Math.floor(abs / 60)).padStart(2, '0');
+      const m = String(abs % 60).padStart(2, '0');
+      const cities = tz.mainCities.slice(0, 2).join(', ');
+      return {
+        label: `(GMT${sign}${h}:${m}) ${tz.alternativeName} — ${cities}`,
+        value: tz.name,
+      };
+    })
+    .sort((a, b) => {
+      // Sort by raw offset first, then alphabetically
+      const tzA = rawTimeZones.find((t) => t.name === a.value)!;
+      const tzB = rawTimeZones.find((t) => t.name === b.value)!;
+      return tzA.rawOffsetInMinutes - tzB.rawOffsetInMinutes || a.label.localeCompare(b.label);
+    });
+}
+
+const TZ_OPTIONS = buildTzOptions();
+
+const N_ROUNDS_FORMATS = [
+  TournamentFormat.N_ROUNDS_TOP4_FINAL,
+  TournamentFormat.N_ROUNDS_TOP16_SEMIFINAL_FINAL,
+];
 
 export function TournamentCreate() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -39,8 +77,16 @@ export function TournamentCreate() {
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     maxPlayers: 20,
     format: TournamentFormat.N_ROUNDS_TOP4_FINAL,
-    tableGenerationMode: TableGenerationMode.RANDOM,
+    numberOfRounds: 4,
   });
+
+  const FORMAT_LABELS: Record<string, string> = {
+    [TournamentFormat.N_ROUNDS_TOP4_FINAL]: t.formats.N_ROUNDS_TOP4_FINAL,
+    [TournamentFormat.N_ROUNDS_TOP16_SEMIFINAL_FINAL]: t.formats.N_ROUNDS_TOP16_SEMIFINAL_FINAL,
+    [TournamentFormat.SWISS]: t.formats.SWISS,
+  };
+
+  const isNRoundsFormat = N_ROUNDS_FORMATS.includes(form.format as TournamentFormat);
 
   const handleChange = (field: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const val = (e.target as HTMLInputElement).type === 'checkbox'
@@ -63,13 +109,13 @@ export function TournamentCreate() {
         timezone: form.timezone,
         maxPlayers: Number(form.maxPlayers),
         format: form.format,
-        tableGenerationMode: form.tableGenerationMode,
+        numberOfRounds: isNRoundsFormat ? Number(form.numberOfRounds) : undefined,
         tiebreakerOrder: ['victory_points', 'wins', 'opponent_strength', 'avg_position'],
       });
       navigate(`/tournaments/${tournament.id}/manage`);
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      setError(msg || 'Failed to create tournament');
+      setError(msg || t.tournamentCreate.failed);
     } finally {
       setLoading(false);
     }
@@ -77,40 +123,40 @@ export function TournamentCreate() {
 
   return (
     <Box maxWidth="md" mx="auto">
-      <Typography variant="h4" fontWeight={700} mb={3}>Create Tournament</Typography>
+      <Typography variant="h4" fontWeight={700} mb={3}>{t.tournamentCreate.title}</Typography>
 
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
       <Box component="form" onSubmit={handleSubmit}>
         <Card sx={{ mb: 3 }}>
           <CardContent>
-            <Typography variant="h6" mb={2}>Basic Info</Typography>
+            <Typography variant="h6" mb={2}>{t.tournamentCreate.basicInfo}</Typography>
             <Grid container spacing={2}>
               <Grid item xs={12}>
-                <TextField label="Tournament Name" value={form.name} onChange={handleChange('name')} required fullWidth />
+                <TextField label={t.tournamentCreate.name} value={form.name} onChange={handleChange('name')} required fullWidth />
               </Grid>
               <Grid item xs={12}>
-                <TextField label="Description" value={form.description} onChange={handleChange('description')} fullWidth multiline rows={3} />
+                <TextField label={t.tournamentCreate.description} value={form.description} onChange={handleChange('description')} fullWidth multiline rows={3} />
               </Grid>
               <Grid item xs={12} sm={8}>
                 <TextField
-                  label="Location"
+                  label={t.tournamentCreate.location}
                   value={form.location}
                   onChange={handleChange('location')}
                   fullWidth
                   disabled={form.isOnline}
-                  placeholder="City, Country"
+                  placeholder={t.tournamentCreate.locationPlaceholder}
                 />
               </Grid>
               <Grid item xs={12} sm={4} sx={{ display: 'flex', alignItems: 'center' }}>
                 <FormControlLabel
                   control={<Switch checked={form.isOnline} onChange={(e) => setForm((p) => ({ ...p, isOnline: e.target.checked }))} />}
-                  label="Online"
+                  label={t.tournamentCreate.online}
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
                 <TextField
-                  label="Start Date & Time"
+                  label={t.tournamentCreate.startDateTime}
                   type="datetime-local"
                   value={form.startsAt}
                   onChange={handleChange('startsAt')}
@@ -120,11 +166,22 @@ export function TournamentCreate() {
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
-                <TextField label="Timezone" value={form.timezone} onChange={handleChange('timezone')} fullWidth />
+                <Autocomplete
+                  options={TZ_OPTIONS}
+                  value={TZ_OPTIONS.find((o) => o.value === form.timezone) ?? null}
+                  onChange={(_, option) => {
+                    if (option) setForm((p) => ({ ...p, timezone: option.value }));
+                  }}
+                  getOptionLabel={(o) => o.label}
+                  isOptionEqualToValue={(a, b) => a.value === b.value}
+                  renderInput={(params) => (
+                    <TextField {...params} label={t.tournamentCreate.timezone} required />
+                  )}
+                />
               </Grid>
               <Grid item xs={12} sm={6}>
                 <TextField
-                  label="Max Players"
+                  label={t.tournamentCreate.maxPlayers}
                   type="number"
                   value={form.maxPlayers}
                   onChange={handleChange('maxPlayers')}
@@ -139,34 +196,42 @@ export function TournamentCreate() {
 
         <Card sx={{ mb: 3 }}>
           <CardContent>
-            <Typography variant="h6" mb={2}>Format & Rules</Typography>
+            <Typography variant="h6" mb={2}>{t.tournamentCreate.formatRules}</Typography>
             <Grid container spacing={2}>
-              <Grid item xs={12} sm={6}>
+              <Grid item xs={12} sm={isNRoundsFormat ? 6 : 12}>
                 <FormControl fullWidth>
-                  <InputLabel>Format</InputLabel>
-                  <Select value={form.format} label="Format" onChange={(e) => setForm((p) => ({ ...p, format: e.target.value as TournamentFormat }))}>
+                  <InputLabel>{t.tournamentCreate.format}</InputLabel>
+                  <Select
+                    value={form.format}
+                    label={t.tournamentCreate.format}
+                    onChange={(e) => setForm((p) => ({ ...p, format: e.target.value as TournamentFormat }))}
+                  >
                     {Object.entries(FORMAT_LABELS).map(([v, l]) => (
                       <MenuItem key={v} value={v}>{l}</MenuItem>
                     ))}
                   </Select>
                 </FormControl>
               </Grid>
-              <Grid item xs={12} sm={6}>
-                <FormControl fullWidth>
-                  <InputLabel>Table Generation</InputLabel>
-                  <Select value={form.tableGenerationMode} label="Table Generation" onChange={(e) => setForm((p) => ({ ...p, tableGenerationMode: e.target.value as TableGenerationMode }))}>
-                    <MenuItem value={TableGenerationMode.RANDOM}>Random (minimize repeats)</MenuItem>
-                    <MenuItem value={TableGenerationMode.BALANCED}>Balanced (by performance)</MenuItem>
-                    <MenuItem value={TableGenerationMode.MANUAL}>Manual</MenuItem>
-                  </Select>
-                </FormControl>
-              </Grid>
+              {isNRoundsFormat && (
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    label={t.tournamentCreate.numberOfRounds}
+                    type="number"
+                    value={form.numberOfRounds}
+                    onChange={handleChange('numberOfRounds')}
+                    required
+                    fullWidth
+                    inputProps={{ min: 1, max: 20 }}
+                    helperText={t.tournamentCreate.numberOfRoundsHelper}
+                  />
+                </Grid>
+              )}
             </Grid>
           </CardContent>
         </Card>
 
         <Button type="submit" variant="contained" size="large" disabled={loading} fullWidth>
-          {loading ? 'Creating...' : 'Create Tournament'}
+          {loading ? t.tournamentCreate.loading : t.tournamentCreate.submit}
         </Button>
       </Box>
     </Box>

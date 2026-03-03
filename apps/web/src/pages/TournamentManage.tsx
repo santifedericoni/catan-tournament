@@ -41,6 +41,7 @@ import { LeaderboardTable } from '../components/leaderboard/LeaderboardTable';
 import { ManualTableAssignmentDialog } from '../components/rounds/ManualTableAssignmentDialog';
 import { TableGenerationMode, TournamentStatus, TournamentRole } from '@catan/shared';
 import type { TournamentDetail, RegistrationDetail, RoundDetail, TableDetail } from '@catan/shared';
+import { useTranslation } from '../hooks/useTranslation';
 
 interface PlayerEntry {
   // participantId: userId for real users, 'guest:UUID' for guests
@@ -56,10 +57,10 @@ function getSeatParticipantId(seat: any): string {
   return seat.userId ?? `guest:${seat.guestPlayerId}`;
 }
 
-function getSeatDisplayName(seat: any): string {
+function getSeatDisplayName(seat: any, unknownLabel: string): string {
   if (seat.user?.displayName) return seat.user.displayName;
   if (seat.guestPlayer?.name) return `${seat.guestPlayer.name} (guest)`;
-  return 'Desconocido';
+  return unknownLabel;
 }
 
 function ResultEntryForm({
@@ -71,6 +72,7 @@ function ResultEntryForm({
   tournamentId: string;
   onSubmitted: () => void;
 }) {
+  const { t } = useTranslation();
   const hasResults = table.results.length > 0;
 
   const [entries, setEntries] = useState<PlayerEntry[]>(() =>
@@ -84,7 +86,7 @@ function ResultEntryForm({
       );
       return {
         participantId,
-        displayName: getSeatDisplayName(seat),
+        displayName: getSeatDisplayName(seat, t.tournamentManage.unknown),
         isGuest,
         position: existing?.position ?? 1,
         catanPoints: existing?.catanPoints ?? 0,
@@ -123,7 +125,7 @@ function ResultEntryForm({
       setSubmissions(data);
       setShowSubmissions(true);
     } catch {
-      setError('Could not load submissions');
+      setError(t.tournamentManage.failedLoadSubmissions);
     }
   };
 
@@ -143,7 +145,7 @@ function ResultEntryForm({
       }
       onSubmitted();
     } catch (e: unknown) {
-      setError((e as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Failed to submit results');
+      setError((e as { response?: { data?: { message?: string } } })?.response?.data?.message || t.tournamentManage.failedSubmitResults);
     } finally {
       setSubmitting(false);
     }
@@ -161,7 +163,7 @@ function ResultEntryForm({
       );
       onSubmitted();
     } catch (e: unknown) {
-      setError((e as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Failed to finalize results');
+      setError((e as { response?: { data?: { message?: string } } })?.response?.data?.message || t.tournamentManage.failedFinalizeResults);
     } finally {
       setSubmitting(false);
     }
@@ -179,7 +181,7 @@ function ResultEntryForm({
       <CardContent>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1, flexWrap: 'wrap', gap: 1 }}>
           <Typography variant="subtitle2" fontWeight={700}>
-            Table {table.tableNumber}
+            {t.tournamentManage.tableTitle.replace('{n}', String(table.tableNumber))}
           </Typography>
           <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
             <Chip
@@ -196,26 +198,26 @@ function ResultEntryForm({
                 sx={{ cursor: 'pointer' }}
               />
             )}
-            {hasResults && <Chip label="Results loaded" size="small" color="success" />}
+            {hasResults && <Chip label={t.tournamentManage.resultsLoaded} size="small" color="success" />}
           </Box>
         </Box>
 
         {table.resultStatus === 'DISPUTED' && (
           <Alert severity="error" sx={{ mb: 1 }}>
-            Score discrepancy. Review the submissions and finalize the official result.
+            {t.tournamentManage.discrepancyWarning}
           </Alert>
         )}
 
         <FormControl size="small" sx={{ mb: 1.5 }}>
-          <InputLabel>Game end</InputLabel>
+          <InputLabel>{t.tournamentManage.gameEnd}</InputLabel>
           <Select
             value={endedReason}
-            label="Game end"
+            label={t.tournamentManage.gameEnd}
             onChange={(e) => setEndedReason(e.target.value as 'NORMAL' | 'TIME_LIMIT')}
             sx={{ minWidth: 180 }}
           >
-            <MenuItem value="NORMAL">Normal (10+ points)</MenuItem>
-            <MenuItem value="TIME_LIMIT">By time</MenuItem>
+            <MenuItem value="NORMAL">{t.tournamentManage.gameEndNormal}</MenuItem>
+            <MenuItem value="TIME_LIMIT">{t.tournamentManage.gameEndTime}</MenuItem>
           </Select>
         </FormControl>
 
@@ -234,9 +236,9 @@ function ResultEntryForm({
               </Box>
               <TextField
                 size="small"
-                label="Catan Pts"
+                label={t.tournamentManage.catanPts}
                 value={entry.catanPoints === 0 ? '' : entry.catanPoints}
-                placeholder="2–10"
+                placeholder={t.tournamentManage.ptsRange}
                 onChange={(e) => {
                   const raw = e.target.value.replace(/\D/g, '');
                   const val = raw === '' ? 0 : Math.min(10, parseInt(raw, 10));
@@ -259,19 +261,19 @@ function ResultEntryForm({
 
         <Box sx={{ display: 'flex', gap: 1, mt: 1.5, flexWrap: 'wrap' }}>
           <Button variant="contained" size="small" onClick={handleSubmit} disabled={submitting}>
-            {hasResults ? 'Correct' : 'Save'}
+            {hasResults ? t.tournamentManage.correct : t.tournamentManage.saveBtn}
           </Button>
           <Button variant="outlined" size="small" color="warning" onClick={handleFinalize} disabled={submitting}>
-            Finalize official
+            {t.tournamentManage.finalizeBtn}
           </Button>
         </Box>
 
         {/* Submissions comparison dialog */}
         <Dialog open={showSubmissions} onClose={() => setShowSubmissions(false)} maxWidth="md" fullWidth>
-          <DialogTitle>Submissions — Table {table.tableNumber}</DialogTitle>
+          <DialogTitle>{t.tournamentManage.submissionsTitle.replace('{n}', String(table.tableNumber))}</DialogTitle>
           <DialogContent>
             {submissions.length === 0 ? (
-              <Typography color="text.secondary">No submissions yet.</Typography>
+              <Typography color="text.secondary">{t.tournamentManage.noSubmissions}</Typography>
             ) : (
               submissions.map((sub: any) => (
                 <Box key={sub.id} mb={2} p={1.5} border={1} borderColor="divider" borderRadius={1}>
@@ -300,6 +302,7 @@ function ResultEntryForm({
 }
 
 function OrganizersPanel({ tournamentId, myRole }: { tournamentId: string; myRole: string }) {
+  const { t } = useTranslation();
   const [organizers, setOrganizers] = useState<any[]>([]);
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
@@ -354,15 +357,15 @@ function OrganizersPanel({ tournamentId, myRole }: { tournamentId: string; myRol
 
   return (
     <Box>
-      <Typography variant="h6" mb={2}>Organizers</Typography>
+      <Typography variant="h6" mb={2}>{t.tournamentManage.organizersTitle}</Typography>
       <TableContainer component={Paper} variant="outlined" sx={{ mb: 3 }}>
         <Table size="small">
           <TableHead>
             <TableRow>
-              <TableCell>Name</TableCell>
-              <TableCell>Email</TableCell>
-              <TableCell>Role</TableCell>
-              {isOwner && <TableCell align="right">Actions</TableCell>}
+              <TableCell>{t.tournamentManage.colName}</TableCell>
+              <TableCell>{t.tournamentManage.colEmail}</TableCell>
+              <TableCell>{t.tournamentManage.colRole}</TableCell>
+              {isOwner && <TableCell align="right">{t.tournamentManage.colActions}</TableCell>}
             </TableRow>
           </TableHead>
           <TableBody>
@@ -377,7 +380,7 @@ function OrganizersPanel({ tournamentId, myRole }: { tournamentId: string; myRol
                   <TableCell align="right">
                     {org.role === 'CO_ORGANIZER' && (
                       <Button size="small" color="error" variant="outlined" onClick={() => handleRemove(org.user.id)} disabled={loading}>
-                        Remove
+                        {t.tournamentManage.removePlayer}
                       </Button>
                     )}
                   </TableCell>
@@ -391,18 +394,18 @@ function OrganizersPanel({ tournamentId, myRole }: { tournamentId: string; myRol
       {isOwner && (
         <Box>
           <Divider sx={{ mb: 2 }} />
-          <Typography variant="subtitle2" mb={1}>Add co-organizer</Typography>
+          <Typography variant="subtitle2" mb={1}>{t.tournamentManage.addCoOrg}</Typography>
           <Box sx={{ display: 'flex', gap: 1 }}>
             <TextField
               size="small"
-              label="User email"
+              label={t.tournamentManage.userEmail}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               sx={{ minWidth: 240 }}
               onKeyDown={(e) => { if (e.key === 'Enter') handleAdd(); }}
             />
             <Button variant="contained" onClick={handleAdd} disabled={loading || !email.trim()}>
-              Add
+              {t.common.add}
             </Button>
           </Box>
           {error && <Alert severity="error" sx={{ mt: 1 }}>{error}</Alert>}
@@ -415,6 +418,7 @@ function OrganizersPanel({ tournamentId, myRole }: { tournamentId: string; myRol
 
 
 function GuestPlayersPanel({ tournamentId, onChanged }: { tournamentId: string; onChanged: () => void }) {
+  const { t } = useTranslation();
   const [guestName, setGuestName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -439,11 +443,11 @@ function GuestPlayersPanel({ tournamentId, onChanged }: { tournamentId: string; 
 
   return (
     <Box>
-      <Typography variant="subtitle2" mb={1}>Add guest player</Typography>
+      <Typography variant="subtitle2" mb={1}>{t.tournamentManage.addGuestPlayer}</Typography>
       <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
         <TextField
           size="small"
-          label="Guest name"
+          label={t.tournamentManage.guestName}
           value={guestName}
           onChange={(e) => setGuestName(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') handleAdd(); }}
@@ -451,7 +455,7 @@ function GuestPlayersPanel({ tournamentId, onChanged }: { tournamentId: string; 
           disabled={loading}
         />
         <Button variant="contained" size="small" onClick={handleAdd} disabled={loading || !guestName.trim()}>
-          Add
+          {t.common.add}
         </Button>
       </Box>
       {error && <Alert severity="error" sx={{ mt: 1 }}>{error}</Alert>}
@@ -581,6 +585,7 @@ export function TournamentManage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuthStore();
+  const { t } = useTranslation();
 
   const [tournament, setTournament] = useState<TournamentDetail | null>(null);
   const [registrations, setRegistrations] = useState<RegistrationDetail[]>([]);
@@ -601,11 +606,11 @@ export function TournamentManage() {
   const load = useCallback(async () => {
     if (!id) return;
     try {
-      const [t, regs] = await Promise.all([
+      const [tournamentData, regs] = await Promise.all([
         tournamentsApi.get(id, user?.id),
         tournamentsApi.getRegistrations(id).catch(() => []),
       ]);
-      setTournament(t);
+      setTournament(tournamentData);
       setRegistrations(regs);
     } catch {
       setError('Failed to load tournament data');
@@ -755,7 +760,7 @@ export function TournamentManage() {
   };
 
   const handleDeleteStage = async (stageId: string) => {
-    if (!id || !window.confirm('Are you sure you want to delete this stage and all its rounds?')) return;
+    if (!id || !window.confirm(t.tournamentManage.deleteStageConfirm)) return;
     setActionLoading(true);
     setSuccessMsg('');
     try {
@@ -770,7 +775,7 @@ export function TournamentManage() {
   };
 
   const handleDeleteRound = async (roundId: string) => {
-    if (!id || !window.confirm('Are you sure you want to delete this round?')) return;
+    if (!id || !window.confirm(t.tournamentManage.deleteRoundConfirm)) return;
     setActionLoading(true);
     setSuccessMsg('');
     try {
@@ -807,42 +812,42 @@ export function TournamentManage() {
   if (error) return <Alert severity="error">{error}</Alert>;
   if (!tournament) return null;
 
-  const t = tournament;
-  const myRole = t.myRole ?? '';
+  const tournamentData = tournament;
+  const myRole = tournamentData.myRole ?? '';
 
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, flexWrap: 'wrap', gap: 2 }}>
         <Box>
-          <Typography variant="h5" fontWeight={700}>{t.name}</Typography>
+          <Typography variant="h5" fontWeight={700}>{tournamentData.name}</Typography>
           <Box sx={{ display: 'flex', gap: 1, mt: 0.5 }}>
-            <StatusChip status={t.status} />
+            <StatusChip status={tournamentData.status} />
             <Chip label="Organizer Panel" size="small" color="primary" />
             {myRole && <Chip label={myRole.replace('_', ' ')} size="small" color={myRole === 'OWNER' ? 'primary' : 'secondary'} variant="outlined" />}
           </Box>
         </Box>
 
         <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-          {t.status === TournamentStatus.DRAFT && (
-            <Button variant="contained" color="success" onClick={() => handleTransition('publish')}>Publish</Button>
+          {tournamentData.status === TournamentStatus.DRAFT && (
+            <Button variant="contained" color="success" onClick={() => handleTransition('publish')}>{t.tournamentManage.btnPublish}</Button>
           )}
-          {t.status === TournamentStatus.PUBLISHED && (
-            <Button variant="contained" color="warning" onClick={() => handleTransition('start-checkin')}>Start Check-in</Button>
+          {tournamentData.status === TournamentStatus.PUBLISHED && (
+            <Button variant="contained" color="warning" onClick={() => handleTransition('start-checkin')}>{t.tournamentManage.btnCheckin}</Button>
           )}
-          {t.status === TournamentStatus.CHECKIN && (
-            <Button variant="contained" color="success" onClick={() => handleTransition('start')}>Start Tournament</Button>
+          {tournamentData.status === TournamentStatus.CHECKIN && (
+            <Button variant="contained" color="success" onClick={() => handleTransition('start')}>{t.tournamentManage.btnStart}</Button>
           )}
-          {t.status === TournamentStatus.RUNNING && (
-            <Button variant="contained" color="primary" onClick={() => handleTransition('finish')}>Close Tournament</Button>
+          {tournamentData.status === TournamentStatus.RUNNING && (
+            <Button variant="contained" color="primary" onClick={() => handleTransition('finish')}>{t.tournamentManage.btnClose}</Button>
           )}
-          {![TournamentStatus.FINISHED, TournamentStatus.CANCELLED].includes(t.status as TournamentStatus) && (
-            <Button variant="outlined" color="error" onClick={() => handleTransition('cancel')}>Cancel</Button>
+          {![TournamentStatus.FINISHED, TournamentStatus.CANCELLED].includes(tournamentData.status as TournamentStatus) && (
+            <Button variant="outlined" color="error" onClick={() => handleTransition('cancel')}>{t.tournamentManage.btnCancel}</Button>
           )}
-          <Button variant="outlined" onClick={() => navigate(`/tournaments/${id}?view=player`)}>Player view</Button>
+          <Button variant="outlined" onClick={() => navigate(`/tournaments/${id}?view=player`)}>{t.tournamentManage.btnPlayerView}</Button>
         </Box>
       </Box>
 
-      {actionLoading && <Box sx={{ mb: 2 }}><CircularProgress size={24} sx={{ mr: 1 }} /> Processing...</Box>}
+      {actionLoading && <Box sx={{ mb: 2 }}><CircularProgress size={24} sx={{ mr: 1 }} /> {t.tournamentManage.btnProcessing}</Box>}
 
       <Snackbar open={!!actionError} autoHideDuration={6000} onClose={() => setActionError('')} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
         <Alert severity="error" onClose={() => setActionError('')} sx={{ width: '100%' }}>{actionError}</Alert>
@@ -853,12 +858,12 @@ export function TournamentManage() {
       </Snackbar>
 
       <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 3 }} variant="scrollable">
-        <Tab label={`Registrations (${registrations.length})`} />
-        <Tab label="Stages & Rounds" />
-        <Tab label="Results" />
-        <Tab label="Leaderboard" />
-        <Tab label="Organizers" />
-        <Tab label="Audit Log" />
+        <Tab label={`${t.tournamentManage.tabRegistrations} (${registrations.length})`} />
+        <Tab label={t.tournamentManage.tabStages} />
+        <Tab label={t.tournamentManage.tabResults} />
+        <Tab label={t.tournamentManage.tabLeaderboard} />
+        <Tab label={t.tournamentManage.tabOrganizers} />
+        <Tab label={t.tournamentManage.tabAuditLog} />
       </Tabs>
 
       {/* Registrations tab */}
@@ -868,11 +873,11 @@ export function TournamentManage() {
             <Table size="small">
               <TableHead>
                 <TableRow>
-                  <TableCell>Player</TableCell>
-                  <TableCell>Alias</TableCell>
-                  <TableCell>Elo</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell align="right">Actions</TableCell>
+                  <TableCell>{t.tournamentManage.colPlayer}</TableCell>
+                  <TableCell>{t.tournamentManage.colAlias}</TableCell>
+                  <TableCell>{t.tournamentManage.colElo}</TableCell>
+                  <TableCell>{t.tournamentManage.colStatus}</TableCell>
+                  <TableCell align="right">{t.tournamentManage.colActions}</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -887,7 +892,7 @@ export function TournamentManage() {
                       <TableCell>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                           {displayName}
-                          {isGuest && <Chip label="guest" size="small" variant="outlined" sx={{ fontSize: '0.65rem', height: 18 }} />}
+                          {isGuest && <Chip label={t.common.guest} size="small" variant="outlined" sx={{ fontSize: '0.65rem', height: 18 }} />}
                         </Box>
                       </TableCell>
                       <TableCell>{!isGuest && reg.user?.alias ? `@${reg.user.alias}` : '—'}</TableCell>
@@ -897,12 +902,12 @@ export function TournamentManage() {
                         <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'flex-end' }}>
                           {!isGuest && reg.status === 'REQUESTED' && (
                             <>
-                              <Button size="small" variant="contained" color="success" onClick={() => handleRegistrationAction(reg.userId!, 'APPROVED')}>Approve</Button>
-                              <Button size="small" variant="outlined" color="error" onClick={() => handleRegistrationAction(reg.userId!, 'REJECTED')}>Reject</Button>
+                              <Button size="small" variant="contained" color="success" onClick={() => handleRegistrationAction(reg.userId!, 'APPROVED')}>{t.tournamentManage.approve}</Button>
+                              <Button size="small" variant="outlined" color="error" onClick={() => handleRegistrationAction(reg.userId!, 'REJECTED')}>{t.tournamentManage.reject}</Button>
                             </>
                           )}
                           {!isGuest && ['APPROVED', 'CHECKED_IN', 'WAITLIST'].includes(reg.status) && (
-                            <Button size="small" variant="outlined" color="error" onClick={() => handleRegistrationAction(reg.userId!, 'REMOVED')}>Remove</Button>
+                            <Button size="small" variant="outlined" color="error" onClick={() => handleRegistrationAction(reg.userId!, 'REMOVED')}>{t.tournamentManage.removePlayer}</Button>
                           )}
                           {isGuest && (
                             <IconButton
@@ -941,53 +946,57 @@ export function TournamentManage() {
       {tab === 1 && (
         <Box>
           <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
-            <Button variant="outlined" onClick={() => handleCreateStage('QUALIFIER')}>+ Add Qualifier Stage</Button>
-            <Button variant="outlined" onClick={() => handleCreateStage('SEMIFINAL')}>+ Add Semifinal Stage</Button>
-            <Button variant="outlined" onClick={() => handleCreateStage('FINAL')}>+ Add Final Stage</Button>
+            <Button variant="outlined" onClick={() => handleCreateStage('QUALIFIER')}>{t.tournamentManage.addQualifier}</Button>
+            <Button variant="outlined" onClick={() => handleCreateStage('SEMIFINAL')}>{t.tournamentManage.addSemifinal}</Button>
+            <Button variant="outlined" onClick={() => handleCreateStage('FINAL')}>{t.tournamentManage.addFinal}</Button>
           </Box>
 
           <FormControl size="small" sx={{ mb: 2, minWidth: 200 }}>
-            <InputLabel>Table Generation Mode</InputLabel>
+            <InputLabel>{t.tournamentManage.tableGenerationMode}</InputLabel>
             <Select
               value={tableMode}
-              label="Table Generation Mode"
+              label={t.tournamentManage.tableGenerationMode}
               onChange={(e) => {
                 setTableMode(e.target.value as TableGenerationMode);
               }}
             >
-              <MenuItem value={TableGenerationMode.RANDOM}>Random</MenuItem>
-              <MenuItem value={TableGenerationMode.BALANCED}>Balanced</MenuItem>
-              <MenuItem value={TableGenerationMode.MANUAL}>Manual</MenuItem>
+              <MenuItem value={TableGenerationMode.RANDOM}>{t.tableGenModes.RANDOM}</MenuItem>
+              <MenuItem value={TableGenerationMode.BALANCED}>{t.tableGenModes.BALANCED}</MenuItem>
+              <MenuItem value={TableGenerationMode.MANUAL}>{t.tableGenModes.MANUAL}</MenuItem>
             </Select>
           </FormControl>
 
-          {t.stages?.map((stage) => (
+          {tournamentData.stages?.map((stage) => (
             <Box key={stage.id} mb={3}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                <Typography variant="h6">{stage.type} Stage</Typography>
-                <Button size="small" variant="text" color="error" onClick={() => handleDeleteStage(stage.id)}>Delete Stage</Button>
+                <Typography variant="h6">{t.tournamentManage.stageLabel.replace('{type}', stage.type)}</Typography>
+                <Button size="small" variant="text" color="error" onClick={() => handleDeleteStage(stage.id)}>{t.tournamentManage.deleteStage}</Button>
               </Box>
-              <Button size="small" variant="outlined" sx={{ mb: 2 }} onClick={() => handleCreateRound(stage.id)}>+ Create Round</Button>
+              <Button size="small" variant="outlined" sx={{ mb: 2 }} onClick={() => handleCreateRound(stage.id)}>{t.tournamentManage.createRound}</Button>
               {stage.rounds.map((round) => (
                 <Box key={round.id} mb={2} p={2} border={1} borderColor="divider" borderRadius={1}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
                     <Typography variant="subtitle1" fontWeight={600}>
-                      Round {round.roundNumber} — <StatusChip status={round.status} />
+                      {t.tournamentManage.roundLabel.replace('{n}', String(round.roundNumber))} <StatusChip status={round.status} />
                     </Typography>
                     <Box sx={{ display: 'flex', gap: 1 }}>
                       {round.status === 'PENDING' && (
                         <>
-                          <Button size="small" variant="outlined" onClick={() => handleGenerateTables(round.id, round.roundNumber)}>Generate Tables ({tableMode})</Button>
-                          <Button size="small" variant="contained" onClick={() => handleStartRound(round.id)}>Start Round</Button>
-                          <Button size="small" variant="text" color="error" onClick={() => handleDeleteRound(round.id)}>Delete</Button>
+                          <Button size="small" variant="outlined" onClick={() => handleGenerateTables(round.id, round.roundNumber)}>
+                            {t.tournamentManage.generateTables.replace('{mode}', tableMode)}
+                          </Button>
+                          <Button size="small" variant="contained" onClick={() => handleStartRound(round.id)}>{t.tournamentManage.startRound}</Button>
+                          <Button size="small" variant="text" color="error" onClick={() => handleDeleteRound(round.id)}>{t.tournamentManage.deleteRound}</Button>
                         </>
                       )}
                       {round.status === 'IN_PROGRESS' && (
-                        <Button size="small" variant="contained" color="warning" onClick={() => handleCloseRound(round.id)}>Close Round</Button>
+                        <Button size="small" variant="contained" color="warning" onClick={() => handleCloseRound(round.id)}>{t.tournamentManage.closeRound}</Button>
                       )}
                     </Box>
                   </Box>
-                  <Typography variant="caption" color="text.secondary">{round.tableCount} tables</Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {t.tournamentManage.tablesCount.replace('{n}', String(round.tableCount))}
+                  </Typography>
                 </Box>
               ))}
             </Box>
@@ -999,15 +1008,17 @@ export function TournamentManage() {
       {tab === 2 && (
         <Box>
           {!currentRoundDetail ? (
-            <Alert severity="info">No round in progress. Start a round from the "Stages &amp; Rounds" tab.</Alert>
+            <Alert severity="info">{t.tournamentManage.noRoundInProgress}</Alert>
           ) : (
             <Box>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                <Typography variant="h6">Round {currentRoundDetail.roundNumber} — Result entry</Typography>
-                <Button size="small" variant="outlined" onClick={reloadCurrentRound}>Refresh</Button>
+                <Typography variant="h6">
+                  {t.tournamentManage.roundResultsTitle.replace('{n}', String(currentRoundDetail.roundNumber))}
+                </Typography>
+                <Button size="small" variant="outlined" onClick={reloadCurrentRound}>{t.common.refresh}</Button>
               </Box>
               <Alert severity="info" sx={{ mb: 2 }}>
-                Players can submit their own scores. Click on the submissions chip to see what they sent. You can finalize the official result with "Finalize official".
+                {t.tournamentManage.resultEntryHelp}
               </Alert>
               <Grid container spacing={2}>
                 {currentRoundDetail.tables.map((table) => (
@@ -1025,9 +1036,9 @@ export function TournamentManage() {
       {tab === 3 && (
         <Box>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-            <Typography variant="h6">Leaderboard</Typography>
+            <Typography variant="h6">{t.tournamentManage.leaderboardTitle}</Typography>
             <Button size="small" variant="outlined" onClick={() => id && tournamentsApi.getLeaderboard(id).then(setLeaderboard).catch(() => {})}>
-              Refresh
+              {t.common.refresh}
             </Button>
           </Box>
           <LeaderboardTable entries={leaderboard} highlightUserId={user?.id} />

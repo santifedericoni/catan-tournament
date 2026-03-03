@@ -10,6 +10,7 @@ import {
   Box,
 } from '@mui/material';
 import type { LeaderboardEntry } from '@catan/shared';
+import { useTranslation } from '../../hooks/useTranslation';
 
 interface LeaderboardTableProps {
   entries: LeaderboardEntry[];
@@ -17,10 +18,12 @@ interface LeaderboardTableProps {
 }
 
 export function LeaderboardTable({ entries, highlightUserId }: LeaderboardTableProps) {
+  const { t } = useTranslation();
+
   if (entries.length === 0) {
     return (
       <Typography color="text.secondary" sx={{ py: 4, textAlign: 'center' }}>
-        No results yet. The leaderboard will appear after the first round.
+        {t.leaderboard.noResults}
       </Typography>
     );
   }
@@ -30,13 +33,13 @@ export function LeaderboardTable({ entries, highlightUserId }: LeaderboardTableP
       <Table size="small">
         <TableHead>
           <TableRow sx={{ bgcolor: 'primary.main' }}>
-            <TableCell sx={{ color: 'white', fontWeight: 700 }}>#</TableCell>
-            <TableCell sx={{ color: 'white', fontWeight: 700 }}>Player</TableCell>
-            <TableCell sx={{ color: 'white', fontWeight: 700 }} align="right">VP</TableCell>
-            <TableCell sx={{ color: 'white', fontWeight: 700 }} align="right">Pts Catan</TableCell>
-            <TableCell sx={{ color: 'white', fontWeight: 700 }} align="right">Games</TableCell>
-            <TableCell sx={{ color: 'white', fontWeight: 700 }} align="right">Avg Pos</TableCell>
-            <TableCell sx={{ color: 'white', fontWeight: 700 }} align="right">Elo</TableCell>
+            <TableCell sx={{ color: 'white', fontWeight: 700 }}>{t.leaderboard.colRank}</TableCell>
+            <TableCell sx={{ color: 'white', fontWeight: 700 }}>{t.leaderboard.colPlayer}</TableCell>
+            <TableCell sx={{ color: 'white', fontWeight: 700 }} align="right">{t.leaderboard.colVP}</TableCell>
+            <TableCell sx={{ color: 'white', fontWeight: 700 }} align="right">{t.leaderboard.colCatanPts}</TableCell>
+            <TableCell sx={{ color: 'white', fontWeight: 700 }} align="right">{t.leaderboard.colGames}</TableCell>
+            <TableCell sx={{ color: 'white', fontWeight: 700 }} align="right">{t.leaderboard.colAvgPos}</TableCell>
+            <TableCell sx={{ color: 'white', fontWeight: 700 }} align="right">{t.leaderboard.colElo}</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>

@@ -11,10 +11,12 @@ import {
 } from '@mui/material';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { useTranslation } from '../hooks/useTranslation';
 
 export function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -29,7 +31,7 @@ export function Login() {
       navigate('/');
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      setError(msg || 'Login failed. Check your credentials.');
+      setError(msg || t.login.failed);
     } finally {
       setLoading(false);
     }
@@ -40,14 +42,14 @@ export function Login() {
       <Card sx={{ maxWidth: 400, width: '100%', mx: 2 }}>
         <CardContent sx={{ p: 4 }}>
           <Typography variant="h5" fontWeight={700} mb={3} textAlign="center">
-            🏰 Login to Catan Tournament
+            {t.login.title}
           </Typography>
 
           {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
           <Box component="form" onSubmit={handleSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             <TextField
-              label="Email"
+              label={t.login.email}
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -56,7 +58,7 @@ export function Login() {
               autoFocus
             />
             <TextField
-              label="Password"
+              label={t.login.password}
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -70,14 +72,14 @@ export function Login() {
               disabled={loading}
               size="large"
             >
-              {loading ? 'Logging in...' : 'Login'}
+              {loading ? t.login.loading : t.login.submit}
             </Button>
           </Box>
 
           <Typography variant="body2" textAlign="center" mt={2}>
-            Don&apos;t have an account?{' '}
+            {t.login.noAccount}{' '}
             <Link component={RouterLink} to="/register">
-              Sign up
+              {t.login.signUp}
             </Link>
           </Typography>
         </CardContent>

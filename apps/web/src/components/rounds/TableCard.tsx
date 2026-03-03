@@ -15,6 +15,7 @@ import {
 import type { TableDetail } from '@catan/shared';
 import { TableResultStatus } from '@catan/shared';
 import { PlayerSubmitModal } from '../results/PlayerSubmitModal';
+import { useTranslation } from '../../hooks/useTranslation';
 
 interface TableCardProps {
   table: TableDetail;
@@ -24,19 +25,25 @@ interface TableCardProps {
   onRefresh?: () => void;
 }
 
-const POSITION_LABELS: Record<number, string> = { 1: '🥇 1st', 2: '🥈 2nd', 3: '🥉 3rd', 4: '4th' };
-
-const STATUS_CHIP: Record<TableResultStatus, { label: string; color: 'default' | 'warning' | 'success' | 'error' | 'info' }> = {
-  [TableResultStatus.PENDING]: { label: 'Pending', color: 'default' },
-  [TableResultStatus.CONFIRMED]: { label: 'Confirmed', color: 'success' },
-  [TableResultStatus.DISPUTED]: { label: 'Disputed', color: 'error' },
-  [TableResultStatus.OFFICIAL]: { label: 'Official', color: 'info' },
-};
-
 export function TableCard({ table, tournamentId, currentUserId, showResults = true, onRefresh }: TableCardProps) {
+  const { t } = useTranslation();
   const isMyTable = table.seats.some((s) => s.userId === currentUserId);
   const hasResults = table.results.length > 0;
   const [submitOpen, setSubmitOpen] = React.useState(false);
+
+  const POSITION_LABELS: Record<number, string> = {
+    1: t.tableCard.position1,
+    2: t.tableCard.position2,
+    3: t.tableCard.position3,
+    4: t.tableCard.position4,
+  };
+
+  const STATUS_CHIP: Record<TableResultStatus, { label: string; color: 'default' | 'warning' | 'success' | 'error' | 'info' }> = {
+    [TableResultStatus.PENDING]: { label: t.tableCard.statusPending, color: 'default' },
+    [TableResultStatus.CONFIRMED]: { label: t.tableCard.statusConfirmed, color: 'success' },
+    [TableResultStatus.DISPUTED]: { label: t.tableCard.statusDisputed, color: 'error' },
+    [TableResultStatus.OFFICIAL]: { label: t.tableCard.statusOfficial, color: 'info' },
+  };
 
   // Check if current user has already submitted (can't know without a separate call, use soft hint)
   const statusInfo = STATUS_CHIP[table.resultStatus as TableResultStatus] ?? { label: table.resultStatus, color: 'default' as const };
@@ -58,12 +65,12 @@ export function TableCard({ table, tournamentId, currentUserId, showResults = tr
               <Typography variant="subtitle1" fontWeight={700}>
                 Table {table.tableNumber}
               </Typography>
-              {isMyTable && <Chip label="Your table" size="small" color="secondary" />}
+              {isMyTable && <Chip label={t.tableCard.yourTable} size="small" color="secondary" />}
               <Chip label={statusInfo.label} size="small" color={statusInfo.color} />
-              {table.hasOpenDispute && <Chip label="Dispute" size="small" color="error" />}
+              {table.hasOpenDispute && <Chip label={t.tableCard.dispute} size="small" color="error" />}
               {table.submissionCount > 0 && (
                 <Chip
-                  label={`${table.submissionCount}/${table.seats.length} submitted`}
+                  label={t.tableCard.submitted.replace('{n}', String(table.submissionCount)).replace('{total}', String(table.seats.length))}
                   size="small"
                   variant="outlined"
                 />
@@ -76,7 +83,7 @@ export function TableCard({ table, tournamentId, currentUserId, showResults = tr
           <List dense disablePadding>
             {table.seats.map((seat, idx) => {
               const isGuest = !seat.userId;
-              const displayName = seat.user?.displayName ?? (seat as any).guestPlayer?.name ?? 'Invitado';
+              const displayName = seat.user?.displayName ?? (seat as any).guestPlayer?.name ?? t.tableCard.guest;
               const alias = seat.user?.alias ?? null;
               const result = table.results.find((r) =>
                 isGuest
@@ -99,7 +106,7 @@ export function TableCard({ table, tournamentId, currentUserId, showResults = tr
                             {displayName}
                             {isGuest && (
                               <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 0.5 }}>
-                                (invitado)
+                                ({t.tableCard.guest})
                               </Typography>
                             )}
                             {alias && (
@@ -139,7 +146,7 @@ export function TableCard({ table, tournamentId, currentUserId, showResults = tr
 
           {showResults && !hasResults && (
             <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-              Pending results...
+              {t.tableCard.pendingResults}
             </Typography>
           )}
 
@@ -152,7 +159,7 @@ export function TableCard({ table, tournamentId, currentUserId, showResults = tr
               sx={{ mt: 1.5 }}
               onClick={() => setSubmitOpen(true)}
             >
-              Submit my scores
+              {t.tableCard.submitScores}
             </Button>
           )}
         </CardContent>

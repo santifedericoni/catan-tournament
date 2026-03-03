@@ -21,6 +21,7 @@ import {
 import { useParams } from 'react-router-dom';
 import { usersApi } from '../api/users.api';
 import { useAuthStore } from '../store/auth.store';
+import { useTranslation } from '../hooks/useTranslation';
 
 interface Stats {
   eloRating: number;
@@ -42,6 +43,7 @@ interface RatingEntry {
 export function UserProfile() {
   const { id } = useParams<{ id: string }>();
   const currentUser = useAuthStore((s) => s.user);
+  const { t } = useTranslation();
 
   const [profile, setProfile] = useState<{ displayName: string; alias: string | null; country: string | null; stats: Stats | null } | null>(null);
   const [statsData, setStatsData] = useState<{ stats: Stats; ratingHistory: RatingEntry[] } | null>(null);
@@ -61,7 +63,7 @@ export function UserProfile() {
         setProfile(p);
         setStatsData(s);
       } catch {
-        setError('Failed to load profile');
+        setError(t.profile.failedToLoad);
       } finally {
         setLoading(false);
       }
@@ -116,7 +118,7 @@ export function UserProfile() {
           </Box>
         </Box>
         {isOwnProfile && (
-          <Chip label="Your Profile" size="small" color="primary" sx={{ mt: 1 }} />
+          <Chip label={t.profile.yourProfile} size="small" color="primary" sx={{ mt: 1 }} />
         )}
       </Box>
 
@@ -128,8 +130,8 @@ export function UserProfile() {
               <Typography variant="h4" fontWeight={700} color={isUnranked ? 'text.secondary' : 'primary.main'}>
                 {isUnranked ? '—' : Math.round(stats!.eloRating)}
               </Typography>
-              <Typography variant="caption" color="text.secondary">Elo Rating</Typography>
-              {isUnranked && <Typography variant="caption" display="block" color="text.secondary">Unranked</Typography>}
+              <Typography variant="caption" color="text.secondary">{t.profile.eloRating}</Typography>
+              {isUnranked && <Typography variant="caption" display="block" color="text.secondary">{t.profile.unranked}</Typography>}
             </CardContent>
           </Card>
         </Grid>
@@ -137,7 +139,7 @@ export function UserProfile() {
           <Card>
             <CardContent sx={{ textAlign: 'center' }}>
               <Typography variant="h4" fontWeight={700}>{stats?.tournamentsPlayed ?? 0}</Typography>
-              <Typography variant="caption" color="text.secondary">Tournaments</Typography>
+              <Typography variant="caption" color="text.secondary">{t.profile.tournaments}</Typography>
             </CardContent>
           </Card>
         </Grid>
@@ -145,7 +147,7 @@ export function UserProfile() {
           <Card>
             <CardContent sx={{ textAlign: 'center' }}>
               <Typography variant="h4" fontWeight={700}>{stats?.totalWins ?? 0}</Typography>
-              <Typography variant="caption" color="text.secondary">1st Places</Typography>
+              <Typography variant="caption" color="text.secondary">{t.profile.firstPlaces}</Typography>
             </CardContent>
           </Card>
         </Grid>
@@ -155,7 +157,7 @@ export function UserProfile() {
               <Typography variant="h4" fontWeight={700}>
                 {stats?.avgPosition ? stats.avgPosition.toFixed(1) : '—'}
               </Typography>
-              <Typography variant="caption" color="text.secondary">Avg Position</Typography>
+              <Typography variant="caption" color="text.secondary">{t.profile.avgPosition}</Typography>
             </CardContent>
           </Card>
         </Grid>
@@ -165,7 +167,7 @@ export function UserProfile() {
       {chartData.length > 0 && (
         <Card sx={{ mb: 4 }}>
           <CardContent>
-            <Typography variant="h6" mb={2}>Elo Rating History</Typography>
+            <Typography variant="h6" mb={2}>{t.profile.eloHistory}</Typography>
             <ResponsiveContainer width="100%" height={200}>
               <LineChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" />
@@ -195,7 +197,7 @@ export function UserProfile() {
       {ratingHistory.length > 0 && (
         <Card>
           <CardContent>
-            <Typography variant="h6" mb={2}>Tournament History</Typography>
+            <Typography variant="h6" mb={2}>{t.profile.tournamentHistory}</Typography>
             {ratingHistory.map((entry) => (
               <Box
                 key={entry.id}
@@ -232,7 +234,7 @@ export function UserProfile() {
 
       {isUnranked && (
         <Alert severity="info" sx={{ mt: 2 }}>
-          This player hasn&apos;t completed any tournaments yet. Play to get ranked!
+          {t.profile.noRanking}
         </Alert>
       )}
     </Box>

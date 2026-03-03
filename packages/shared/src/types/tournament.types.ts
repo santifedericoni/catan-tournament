@@ -18,6 +18,7 @@ export interface TournamentSummary {
   status: TournamentStatus;
   format: TournamentFormat;
   tableGenerationMode: TableGenerationMode;
+  numberOfRounds: number | null;
   sponsorName: string | null;
   sponsorLogoUrl: string | null;
   sponsorUrl: string | null;

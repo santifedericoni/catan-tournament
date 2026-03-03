@@ -24,10 +24,11 @@ import { TableCard } from '../components/rounds/TableCard';
 import { TableGameTools } from '../components/rounds/TableGameTools';
 import { useSocket } from '../hooks/useSocket';
 import { useAuthStore } from '../store/auth.store';
+import { useTranslation } from '../hooks/useTranslation';
 import type { TournamentDetail as TDetail, LeaderboardEntry, RoundDetail } from '@catan/shared';
 import { RegistrationStatus, TournamentRole, TournamentStatus } from '@catan/shared';
 
-// Tab indices — "Mi Mesa" is tab 1 only when the player is seated
+// Tab indices — "My Table" is tab 1 only when the player is seated
 const TAB_OVERVIEW = 0;
 const TAB_MY_TABLE = 1;
 const TAB_LEADERBOARD = 2;
@@ -39,6 +40,7 @@ export function TournamentDetail() {
   const [searchParams] = useSearchParams();
   const playerView = searchParams.get('view') === 'player';
   const { user, isAuthenticated } = useAuthStore();
+  const { t } = useTranslation();
 
   const [tournament, setTournament] = useState<TDetail | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
@@ -54,13 +56,13 @@ export function TournamentDetail() {
   const load = useCallback(async () => {
     if (!id) return;
     try {
-      const [t, lb] = await Promise.all([
+      const [tournamentData, lb] = await Promise.all([
         tournamentsApi.get(id, user?.id),
         tournamentsApi.getLeaderboard(id).catch(() => []),
       ]);
-      setTournament(t);
+      setTournament(tournamentData);
       setLeaderboard(lb);
-      const allRounds = t.stages?.flatMap((s: any) => s.rounds) ?? [];
+      const allRounds = tournamentData.stages?.flatMap((s: any) => s.rounds) ?? [];
       const inProgress = allRounds.find((r: any) => r.status === 'IN_PROGRESS');
       if (inProgress) {
         const detail = await roundsApi.getRound(id, inProgress.id).catch(() => null);
@@ -69,11 +71,11 @@ export function TournamentDetail() {
         setCurrentRoundDetail(null);
       }
     } catch {
-      setError('Failed to load tournament');
+      setError(t.tournamentDetail.failedToLoad);
     } finally {
       setLoading(false);
     }
-  }, [id, user?.id]);
+  }, [id, user?.id, t.tournamentDetail.failedToLoad]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -113,7 +115,7 @@ export function TournamentDetail() {
       await tournamentsApi.register(id);
       await load();
     } catch (e: unknown) {
-      setError((e as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Registration failed');
+      setError((e as { response?: { data?: { message?: string } } })?.response?.data?.message || t.tournamentDetail.registrationFailed);
     } finally {
       setActionLoading(false);
     }
@@ -126,7 +128,7 @@ export function TournamentDetail() {
       await tournamentsApi.checkIn(id);
       await load();
     } catch (e: unknown) {
-      setError((e as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Check-in failed');
+      setError((e as { response?: { data?: { message?: string } } })?.response?.data?.message || t.tournamentDetail.checkinFailed);
     } finally {
       setActionLoading(false);
     }
@@ -136,9 +138,9 @@ export function TournamentDetail() {
     const url = `${window.location.origin}/tournaments/${id}`;
     try {
       await navigator.clipboard.writeText(url);
-      setSnackMessage('Link copied to clipboard');
+      setSnackMessage(t.tournamentDetail.linkCopied);
     } catch {
-      setSnackMessage('Could not copy link');
+      setSnackMessage(t.tournamentDetail.linkCopyFailed);
     }
   };
 
@@ -151,8 +153,8 @@ export function TournamentDetail() {
   const canRegister = isAuthenticated && !myReg && tournament.status === TournamentStatus.PUBLISHED;
   const canCheckIn = myReg?.status === RegistrationStatus.APPROVED && tournament.status === TournamentStatus.CHECKIN;
 
-  const myTable = currentRoundDetail?.tables?.find((t) =>
-    t.seats.some((s) => s.userId === user?.id),
+  const myTable = currentRoundDetail?.tables?.find((tbl) =>
+    tbl.seats.some((s) => s.userId === user?.id),
   );
   const myTableNeedsSubmission = myTable && ['PENDING', 'DISPUTED'].includes(myTable.resultStatus as string);
   const isSeated = !!myTable;
@@ -167,26 +169,36 @@ export function TournamentDetail() {
             <Box sx={{ display: 'flex', gap: 1, mt: 1, flexWrap: 'wrap' }}>
               <StatusChip status={tournament.status} />
               <Chip label={tournament.isOnline ? '🌐 Online' : `📍 ${tournament.location}`} size="small" variant="outlined" />
-              <Chip label={`${tournament.registeredCount}/${tournament.maxPlayers} players`} size="small" variant="outlined" />
+              <Chip
+                label={t.tournamentDetail.players
+                  .replace('{registered}', String(tournament.registeredCount))
+                  .replace('{max}', String(tournament.maxPlayers))}
+                size="small"
+                variant="outlined"
+              />
             </Box>
           </Box>
 
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
-            <Tooltip title="Copy tournament link">
+            <Tooltip title={t.tournamentDetail.copyLink}>
               <Button variant="outlined" size="small" startIcon={<ContentCopyIcon />} onClick={handleCopyLink}>
-                Copy link
+                {t.tournamentDetail.copyLinkBtn}
               </Button>
             </Tooltip>
             {isOrganizer && (
               <Button variant="outlined" color="primary" onClick={() => navigate(`/tournaments/${id}/manage`)}>
-                Organizer Panel
+                {t.tournamentDetail.organizerPanel}
               </Button>
             )}
             {canRegister && (
-              <Button variant="contained" onClick={handleRegister} disabled={actionLoading}>Register</Button>
+              <Button variant="contained" onClick={handleRegister} disabled={actionLoading}>
+                {t.tournamentDetail.register}
+              </Button>
             )}
             {canCheckIn && (
-              <Button variant="contained" color="success" onClick={handleCheckIn} disabled={actionLoading}>Check In</Button>
+              <Button variant="contained" color="success" onClick={handleCheckIn} disabled={actionLoading}>
+                {t.tournamentDetail.checkin}
+              </Button>
             )}
             {myReg && !canCheckIn && (
               <StatusChip status={myReg.status} type="registration" />
@@ -204,12 +216,12 @@ export function TournamentDetail() {
       <Divider sx={{ mb: 2 }} />
 
       <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 3 }}>
-        <Tab label="Overview" value={TAB_OVERVIEW} />
+        <Tab label={t.tournamentDetail.tabOverview} value={TAB_OVERVIEW} />
         {isSeated && (
           <Tab
             label={
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                Mi Mesa
+                {t.tournamentDetail.tabMyTable}
                 {myTableNeedsSubmission && (
                   <Box
                     sx={{
@@ -224,8 +236,8 @@ export function TournamentDetail() {
             value={TAB_MY_TABLE}
           />
         )}
-        <Tab label="Leaderboard" value={TAB_LEADERBOARD} />
-        <Tab label="Rounds" value={TAB_ROUNDS} />
+        <Tab label={t.tournamentDetail.tabLeaderboard} value={TAB_LEADERBOARD} />
+        <Tab label={t.tournamentDetail.tabRounds} value={TAB_ROUNDS} />
       </Tabs>
 
       {/* Overview */}
@@ -234,20 +246,26 @@ export function TournamentDetail() {
           <Grid item xs={12} md={6}>
             <Typography variant="h6" mb={1}>Details</Typography>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-              <Typography variant="body2"><b>Date:</b> {new Date(tournament.startsAt).toLocaleString()}</Typography>
-              <Typography variant="body2"><b>Timezone:</b> {tournament.timezone}</Typography>
-              <Typography variant="body2"><b>Format:</b> {tournament.format.replace(/_/g, ' ')}</Typography>
-              <Typography variant="body2"><b>Table generation:</b> {tournament.tableGenerationMode}</Typography>
+              <Typography variant="body2"><b>{t.tournamentDetail.detailDate}</b> {new Date(tournament.startsAt).toLocaleString()}</Typography>
+              <Typography variant="body2"><b>{t.tournamentDetail.detailTimezone}</b> {tournament.timezone}</Typography>
+              <Typography variant="body2">
+                <b>{t.tournamentDetail.detailFormat}</b>{' '}
+                {(t.formats as Record<string, string>)[tournament.format] ?? tournament.format.replace(/_/g, ' ')}
+              </Typography>
+              <Typography variant="body2">
+                <b>{t.tournamentDetail.detailTableGen}</b>{' '}
+                {(t.tableGenModes as Record<string, string>)[tournament.tableGenerationMode] ?? tournament.tableGenerationMode}
+              </Typography>
             </Box>
           </Grid>
         </Grid>
       )}
 
-      {/* Mi Mesa */}
+      {/* My Table */}
       {tab === TAB_MY_TABLE && myTable && (
         <Box>
           <Typography variant="h6" mb={2}>
-            Mi Mesa — Ronda {currentRoundDetail?.roundNumber}
+            {t.tournamentDetail.myTableTitle.replace('{n}', String(currentRoundDetail?.roundNumber))}
           </Typography>
           <TableCard
             table={myTable}
@@ -270,7 +288,7 @@ export function TournamentDetail() {
           {currentRoundDetail && (
             <Box mb={3}>
               <Typography variant="h6" mb={1}>
-                Round {currentRoundDetail.roundNumber} — In progress
+                {t.tournamentDetail.roundInProgress.replace('{n}', String(currentRoundDetail.roundNumber))}
               </Typography>
               <Grid container spacing={2}>
                 {currentRoundDetail.tables.map((table) => (
@@ -289,14 +307,18 @@ export function TournamentDetail() {
 
           {tournament.stages?.map((stage: any) => (
             <Box key={stage.id} mb={3}>
-              <Typography variant="h6" mb={2}>{stage.type} Stage</Typography>
+              <Typography variant="h6" mb={2}>
+                {t.tournamentDetail.stageLabel.replace('{type}', stage.type)}
+              </Typography>
               {stage.rounds.map((round: any) => (
                 <Box key={round.id} mb={2}>
                   <Typography variant="subtitle1" fontWeight={600} mb={1}>
-                    Round {round.roundNumber} — {round.status}
+                    {t.tournamentDetail.roundLabel
+                      .replace('{n}', String(round.roundNumber))
+                      .replace('{status}', round.status)}
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
-                    {round.tableCount} tables
+                    {t.tournamentDetail.tablesCount.replace('{n}', String(round.tableCount))}
                   </Typography>
                 </Box>
               ))}

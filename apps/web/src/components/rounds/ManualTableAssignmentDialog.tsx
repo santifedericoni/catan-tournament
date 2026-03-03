@@ -18,6 +18,7 @@ import {
 import Autocomplete from '@mui/material/Autocomplete';
 import TextField from '@mui/material/TextField';
 import CloseIcon from '@mui/icons-material/Close';
+import { useTranslation } from '../../hooks/useTranslation';
 
 interface PlayerOption {
   id: string;
@@ -39,6 +40,7 @@ export function ManualTableAssignmentDialog({
   playerOptions,
   roundNumber,
 }: ManualTableAssignmentDialogProps) {
+  const { t } = useTranslation();
   const initialTableCount = Math.max(1, Math.ceil(playerOptions.length / 4));
 
   const [tables, setTables] = useState<string[][]>(() =>
@@ -89,7 +91,7 @@ export function ManualTableAssignmentDialog({
 
   const handleConfirm = async () => {
     if (!isValid) {
-      setError('Cada mesa debe tener al menos 3 jugadores.');
+      setError(t.manualAssignment.validationMin);
       return;
     }
     setError('');
@@ -101,7 +103,7 @@ export function ManualTableAssignmentDialog({
     } catch (e: unknown) {
       setError(
         (e as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-          'Error al confirmar mesas.',
+          t.manualAssignment.errorConfirm,
       );
     } finally {
       setConfirming(false);
@@ -112,7 +114,7 @@ export function ManualTableAssignmentDialog({
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="lg" scroll="paper">
       <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Typography variant="h6" fontWeight={700}>
-          Asignación manual — Ronda {roundNumber}
+          {t.manualAssignment.title.replace('{n}', String(roundNumber))}
         </Typography>
         <IconButton onClick={onClose} size="small">
           <CloseIcon />
@@ -128,7 +130,9 @@ export function ManualTableAssignmentDialog({
 
         {unassigned > 0 && (
           <Alert severity="warning" sx={{ mb: 2 }}>
-            {unassigned} jugador{unassigned !== 1 ? 'es' : ''} sin asignar
+            {unassigned === 1
+              ? t.manualAssignment.unassigned.replace('{n}', String(unassigned))
+              : t.manualAssignment.unassigned_plural.replace('{n}', String(unassigned))}
           </Alert>
         )}
 
@@ -159,14 +163,14 @@ export function ManualTableAssignmentDialog({
                       }}
                     >
                       <Typography variant="subtitle1" fontWeight={700}>
-                        Mesa {tableIdx + 1}
+                        {t.manualAssignment.tableLabel.replace('{n}', String(tableIdx + 1))}
                       </Typography>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <Typography
                           variant="caption"
                           color={table.length < 3 ? 'error' : 'text.secondary'}
                         >
-                          {table.length}/4 jugadores {table.length < 3 && '— mínimo 3'}
+                          {t.manualAssignment.tableSeats.replace('{n}', String(table.length))}{table.length < 3 && ` ${t.manualAssignment.tableMin}`}
                         </Typography>
                         {tables.length > 1 && (
                           <Button
@@ -176,7 +180,7 @@ export function ManualTableAssignmentDialog({
                             sx={{ minWidth: 0, px: 0.5 }}
                             onClick={() => removeTable(tableIdx)}
                           >
-                            Eliminar
+                            {t.manualAssignment.removePlayer}
                           </Button>
                         )}
                       </Box>
@@ -194,7 +198,7 @@ export function ManualTableAssignmentDialog({
                       ))}
                       {assignedPlayers.length === 0 && (
                         <Typography variant="caption" color="text.disabled">
-                          Sin jugadores asignados
+                          {t.manualAssignment.noPlayersAssigned}
                         </Typography>
                       )}
                     </Box>
@@ -211,12 +215,12 @@ export function ManualTableAssignmentDialog({
                         blurOnSelect
                         clearOnBlur
                         size="small"
-                        noOptionsText="No hay jugadores disponibles"
+                        noOptionsText={t.manualAssignment.noPlayersAvailable}
                         renderInput={(params) => (
                           <TextField
                             {...params}
-                            label="Buscar jugador..."
-                            placeholder="Escribí un nombre"
+                            label={t.manualAssignment.searchPlayer}
+                            placeholder={t.manualAssignment.typeAName}
                             size="small"
                           />
                         )}
@@ -224,7 +228,7 @@ export function ManualTableAssignmentDialog({
                     )}
                     {isFull && (
                       <Typography variant="caption" color="text.secondary">
-                        Mesa completa (4/4)
+                        {t.manualAssignment.tableFull}
                       </Typography>
                     )}
                   </CardContent>
@@ -241,7 +245,7 @@ export function ManualTableAssignmentDialog({
               onClick={addTable}
               disabled={allAssigned.length >= playerOptions.length}
             >
-              + Agregar mesa
+              {t.manualAssignment.addTable}
             </Button>
           </Grid>
         </Grid>
@@ -249,7 +253,7 @@ export function ManualTableAssignmentDialog({
 
       <DialogActions sx={{ px: 3, py: 2 }}>
         <Button onClick={onClose} disabled={confirming}>
-          Cancelar
+          {t.manualAssignment.cancel}
         </Button>
         <Button
           variant="contained"
@@ -257,7 +261,7 @@ export function ManualTableAssignmentDialog({
           disabled={!isValid || confirming}
           startIcon={confirming ? <CircularProgress size={16} /> : undefined}
         >
-          {confirming ? 'Confirmando...' : 'Confirmar mesas'}
+          {confirming ? t.manualAssignment.confirming : t.manualAssignment.confirm}
         </Button>
       </DialogActions>
     </Dialog>

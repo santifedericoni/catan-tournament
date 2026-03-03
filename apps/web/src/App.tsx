@@ -10,6 +10,7 @@ import { TournamentManage } from './pages/TournamentManage';
 import { UserProfile } from './pages/UserProfile';
 import { LeagueCreate } from './pages/LeagueCreate';
 import { LeagueDetail } from './pages/LeagueDetail';
+import { CreatePicker } from './pages/CreatePicker';
 
 export default function App() {
   return (
@@ -21,6 +22,7 @@ export default function App() {
         <Route path="/profile/:id" element={<UserProfile />} />
 
         <Route element={<ProtectedRoute />}>
+          <Route path="/create" element={<CreatePicker />} />
           <Route path="/tournaments/create" element={<TournamentCreate />} />
           <Route path="/tournaments/:id/manage" element={<TournamentManage />} />
           <Route path="/leagues/create" element={<LeagueCreate />} />
