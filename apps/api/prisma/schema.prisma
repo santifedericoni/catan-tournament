@@ -86,6 +86,10 @@ model User {
   alias         String?
   country       String?
   city          String?
+  avatarUrl        String?  @map("avatar_url")
+  bio              String?  @db.VarChar(280)
+  favoriteColor    String?  @map("favorite_color")
+  favoriteExpansion String? @map("favorite_expansion")
   emailVerified Boolean  @default(false) @map("email_verified")
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")

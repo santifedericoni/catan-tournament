@@ -357,6 +357,11 @@ export class RoundsService {
 
     const sequenceOrder = existingStages.length + 1;
 
+    const tournament = await this.prisma.tournament.findUnique({
+      where: { id: tournamentId },
+      select: { numberOfRounds: true, format: true },
+    });
+
     const stage = await this.prisma.stage.create({
       data: {
         tournamentId,
@@ -366,14 +371,31 @@ export class RoundsService {
       },
     });
 
+    // Auto-create rounds for QUALIFIER stages when numberOfRounds is configured
+    const shouldAutoCreate =
+      type === 'QUALIFIER' &&
+      tournament?.numberOfRounds &&
+      tournament.numberOfRounds > 0;
+
+    if (shouldAutoCreate) {
+      for (let i = 1; i <= tournament!.numberOfRounds!; i++) {
+        await this.prisma.round.create({
+          data: { stageId: stage.id, roundNumber: i },
+        });
+      }
+    }
+
     await this.audit.log({
       action: 'STAGE_CREATED',
       actorId,
       tournamentId,
-      payload: { stageId: stage.id, type, sequenceOrder },
+      payload: { stageId: stage.id, type, sequenceOrder, roundsCreated: shouldAutoCreate ? tournament!.numberOfRounds : 0 },
     });
 
-    return stage;
+    return this.prisma.stage.findUnique({
+      where: { id: stage.id },
+      include: { rounds: { orderBy: { roundNumber: 'asc' } } },
+    });
   }
 
   async deleteRound(tournamentId: string, roundId: string, actorId: string) {

@@ -77,7 +77,7 @@ export function TournamentCreate() {
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     maxPlayers: 20,
     format: TournamentFormat.N_ROUNDS_TOP4_FINAL,
-    numberOfRounds: 4,
+    numberOfRounds: 3,
   });
 
   const FORMAT_LABELS: Record<string, string> = {
@@ -97,6 +97,7 @@ export function TournamentCreate() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isNRoundsFormat && Number(form.numberOfRounds) <= 0) return;
     setLoading(true);
     setError('');
     try {
@@ -216,13 +217,17 @@ export function TournamentCreate() {
                 <Grid item xs={12} sm={6}>
                   <TextField
                     label={t.tournamentCreate.numberOfRounds}
-                    type="number"
                     value={form.numberOfRounds}
-                    onChange={handleChange('numberOfRounds')}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === '' || /^\d+$/.test(val)) {
+                        setForm((prev) => ({ ...prev, numberOfRounds: val as unknown as number }));
+                      }
+                    }}
                     required
                     fullWidth
-                    inputProps={{ min: 1, max: 20 }}
-                    helperText={t.tournamentCreate.numberOfRoundsHelper}
+                    error={Number(form.numberOfRounds) <= 0}
+                    helperText={Number(form.numberOfRounds) <= 0 ? t.tournamentCreate.numberOfRoundsHelper : undefined}
                   />
                 </Grid>
               )}

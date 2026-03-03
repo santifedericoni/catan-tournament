@@ -5,6 +5,10 @@ export interface UserProfile {
   alias: string | null;
   country: string | null;
   city: string | null;
+  avatarUrl: string | null;
+  bio: string | null;
+  favoriteColor: string | null;
+  favoriteExpansion: string | null;
   emailVerified: boolean;
   createdAt: string;
   stats: UserStats | null;

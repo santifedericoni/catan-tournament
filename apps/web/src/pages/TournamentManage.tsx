@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -464,122 +464,6 @@ function GuestPlayersPanel({ tournamentId, onChanged }: { tournamentId: string; 
   );
 }
 
-const DICE_FACES = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
-const TIMER_SECONDS = 120;
-
-function OrganizerTools() {
-  const [dice1, setDice1] = useState<number | null>(null);
-  const [dice2, setDice2] = useState<number | null>(null);
-  const [rolling, setRolling] = useState(false);
-
-  const [timeLeft, setTimeLeft] = useState(TIMER_SECONDS);
-  const [timerRunning, setTimerRunning] = useState(false);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  const rollDice = () => {
-    setRolling(true);
-    let ticks = 0;
-    const interval = setInterval(() => {
-      setDice1(Math.ceil(Math.random() * 6));
-      setDice2(Math.ceil(Math.random() * 6));
-      ticks++;
-      if (ticks >= 12) {
-        clearInterval(interval);
-        setDice1(Math.ceil(Math.random() * 6));
-        setDice2(Math.ceil(Math.random() * 6));
-        setRolling(false);
-      }
-    }, 60);
-  };
-
-  const startTimer = () => {
-    if (timerRunning) return;
-    setTimerRunning(true);
-    intervalRef.current = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(intervalRef.current!);
-          setTimerRunning(false);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-  };
-
-  const resetTimer = () => {
-    if (intervalRef.current) clearInterval(intervalRef.current);
-    setTimerRunning(false);
-    setTimeLeft(TIMER_SECONDS);
-  };
-
-  useEffect(() => () => { if (intervalRef.current) clearInterval(intervalRef.current); }, []);
-
-  const mins = String(Math.floor(timeLeft / 60)).padStart(2, '0');
-  const secs = String(timeLeft % 60).padStart(2, '0');
-  const timerColor = timeLeft <= 30 ? 'error.main' : timeLeft <= 60 ? 'warning.main' : 'text.primary';
-  const total = dice1 !== null && dice2 !== null ? dice1 + dice2 : null;
-
-  return (
-    <Box
-      sx={{
-        position: 'fixed',
-        bottom: 24,
-        right: 24,
-        zIndex: 1300,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 1.5,
-        alignItems: 'flex-end',
-      }}
-    >
-      {/* Timer */}
-      <Card variant="outlined" sx={{ minWidth: 180, bgcolor: 'background.paper' }}>
-        <CardContent sx={{ p: '12px !important', textAlign: 'center' }}>
-          <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
-            Timer
-          </Typography>
-          <Typography variant="h4" fontWeight={700} color={timerColor} sx={{ fontVariantNumeric: 'tabular-nums', letterSpacing: 2 }}>
-            {mins}:{secs}
-          </Typography>
-          <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center', mt: 1 }}>
-            <Button size="small" variant="contained" onClick={startTimer} disabled={timerRunning || timeLeft === 0}>
-              Iniciar
-            </Button>
-            <Button size="small" variant="outlined" onClick={resetTimer}>
-              Reset
-            </Button>
-          </Box>
-        </CardContent>
-      </Card>
-
-      {/* Dice */}
-      <Card variant="outlined" sx={{ minWidth: 180, bgcolor: 'background.paper' }}>
-        <CardContent sx={{ p: '12px !important', textAlign: 'center' }}>
-          <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
-            Dados
-          </Typography>
-          <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1, fontSize: 40, lineHeight: 1, mb: 0.5 }}>
-            <span style={{ transition: 'transform 0.1s', transform: rolling ? `rotate(${Math.random() * 60 - 30}deg)` : 'none' }}>
-              {dice1 !== null ? DICE_FACES[dice1 - 1] : '⬜'}
-            </span>
-            <span style={{ transition: 'transform 0.1s', transform: rolling ? `rotate(${Math.random() * 60 - 30}deg)` : 'none' }}>
-              {dice2 !== null ? DICE_FACES[dice2 - 1] : '⬜'}
-            </span>
-          </Box>
-          {total !== null && (
-            <Typography variant="h6" fontWeight={700} color="primary.main">
-              = {total}
-            </Typography>
-          )}
-          <Button size="small" variant="contained" onClick={rollDice} disabled={rolling} sx={{ mt: 0.5 }}>
-            {rolling ? 'Tirando...' : 'Tirar dados'}
-          </Button>
-        </CardContent>
-      </Card>
-    </Box>
-  );
-}
 
 export function TournamentManage() {
   const { id } = useParams<{ id: string }>();
@@ -1065,9 +949,6 @@ export function TournamentManage() {
           })}
         </Box>
       )}
-
-      {/* Organizer tools (dados + timer) — solo visible para santiago.federiconi */}
-      {user?.email === 'santiago.federiconi@gmail.com' && <OrganizerTools />}
 
       {/* Manual table assignment dialog */}
       {(() => {
