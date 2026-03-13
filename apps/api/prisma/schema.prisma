@@ -167,7 +167,7 @@ model League {
   description         String?
   createdBy           String              @map("created_by")
   format              TournamentFormat
-  tiebreakerOrder     Json                @default("[\"victory_points\",\"wins\",\"opponent_strength\",\"avg_position\"]") @map("tiebreaker_order")
+  tiebreakerOrder     Json                @default("[\"victory_points\",\"catan_points\",\"point_share\",\"second_places\",\"third_places\",\"avg_position\"]") @map("tiebreaker_order")
   tableGenerationMode TableGenerationMode @default(RANDOM) @map("table_generation_mode")
   createdAt           DateTime            @default(now()) @map("created_at")
   updatedAt           DateTime            @updatedAt @map("updated_at")
@@ -208,7 +208,7 @@ model Tournament {
   maxPlayers          Int                 @map("max_players")
   status              TournamentStatus    @default(DRAFT)
   format              TournamentFormat
-  tiebreakerOrder     Json                @default("[\"points\",\"wins\",\"opponent_strength\",\"avg_position\"]") @map("tiebreaker_order")
+  tiebreakerOrder     Json                @default("[\"victory_points\",\"catan_points\",\"point_share\",\"second_places\",\"third_places\",\"avg_position\"]") @map("tiebreaker_order")
   tableGenerationMode TableGenerationMode @default(RANDOM) @map("table_generation_mode")
   numberOfRounds      Int?                @map("number_of_rounds")
   sponsorName         String?             @map("sponsor_name")

@@ -37,6 +37,9 @@ export function LeaderboardTable({ entries, highlightUserId }: LeaderboardTableP
             <TableCell sx={{ color: 'white', fontWeight: 700 }}>{t.leaderboard.colPlayer}</TableCell>
             <TableCell sx={{ color: 'white', fontWeight: 700 }} align="right">{t.leaderboard.colVP}</TableCell>
             <TableCell sx={{ color: 'white', fontWeight: 700 }} align="right">{t.leaderboard.colCatanPts}</TableCell>
+            <TableCell sx={{ color: 'white', fontWeight: 700 }} align="right">{t.leaderboard.colPointShare}</TableCell>
+            <TableCell sx={{ color: 'white', fontWeight: 700 }} align="right">{t.leaderboard.colSecondPlaces}</TableCell>
+            <TableCell sx={{ color: 'white', fontWeight: 700 }} align="right">{t.leaderboard.colThirdPlaces}</TableCell>
             <TableCell sx={{ color: 'white', fontWeight: 700 }} align="right">{t.leaderboard.colGames}</TableCell>
             <TableCell sx={{ color: 'white', fontWeight: 700 }} align="right">{t.leaderboard.colAvgPos}</TableCell>
             <TableCell sx={{ color: 'white', fontWeight: 700 }} align="right">{t.leaderboard.colElo}</TableCell>
@@ -83,6 +86,11 @@ export function LeaderboardTable({ entries, highlightUserId }: LeaderboardTableP
                   </Typography>
                 </TableCell>
                 <TableCell align="right">{entry.totalCatanPoints}</TableCell>
+                <TableCell align="right">
+                  {(entry.avgPointShare * 100).toFixed(1)}%
+                </TableCell>
+                <TableCell align="right">{entry.secondPlaces}</TableCell>
+                <TableCell align="right">{entry.thirdPlaces}</TableCell>
                 <TableCell align="right">{entry.gamesPlayed}</TableCell>
                 <TableCell align="right">
                   {entry.avgPosition !== null ? entry.avgPosition.toFixed(1) : '—'}

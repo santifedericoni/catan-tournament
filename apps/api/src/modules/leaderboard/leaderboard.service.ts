@@ -12,14 +12,16 @@ export interface LeaderboardEntry {
   totalCatanPoints: number;
   victoryPoints: number;
   fullWins: number;
+  secondPlaces: number;
+  thirdPlaces: number;
   gamesPlayed: number;
   avgPosition: number | null;
-  opponentStrength: number;
+  avgPointShare: number; // average of (myPoints / tableTotalPoints) across all games
   isEliminated: boolean;
   qualifiedToNextStage: boolean;
 }
 
-type TiebreakerKey = 'victory_points' | 'catan_points' | 'wins' | 'opponent_strength' | 'avg_position';
+type TiebreakerKey = 'victory_points' | 'catan_points' | 'point_share' | 'second_places' | 'third_places' | 'avg_position';
 
 @Injectable()
 export class LeaderboardService {
@@ -34,7 +36,9 @@ export class LeaderboardService {
     const tiebreakerOrder = (tournament.tiebreakerOrder as string[]) ?? [
       'victory_points',
       'catan_points',
-      'opponent_strength',
+      'point_share',
+      'second_places',
+      'third_places',
       'avg_position',
     ];
 
@@ -69,28 +73,22 @@ export class LeaderboardService {
       totalCatanPoints: number;
       victoryPoints: number;
       fullWins: number;
+      secondPlaces: number;
+      thirdPlaces: number;
       gamesPlayed: number;
       positions: number[];
-      tableResults: Map<string, { myPosition: number; opponentCatanPoints: number[] }>;
+      tableResults: Map<string, { myPoints: number; tableTotal: number }>;
     }>();
 
-    // First pass: collect all results grouped by table using unified participant ID
-    const tableResultsMap = new Map<string, Array<{ participantId: string; position: number; catanPoints: number }>>();
+    // First pass: compute total points per table
+    const tableTotalsMap = new Map<string, number>();
     for (const result of results) {
-      // Skip corrupt results with no participant
       if (result.userId === null && result.guestPlayerId === null) continue;
       const tableId = result.table.id;
-      const participantId = result.userId ?? `guest:${result.guestPlayerId}`;
-      if (!tableResultsMap.has(tableId)) tableResultsMap.set(tableId, []);
-      tableResultsMap.get(tableId)!.push({
-        participantId,
-        position: result.position,
-        catanPoints: result.catanPoints,
-      });
+      tableTotalsMap.set(tableId, (tableTotalsMap.get(tableId) ?? 0) + result.catanPoints);
     }
 
     for (const result of results) {
-      // Skip corrupt results with no participant (shouldn't happen, but guard anyway)
       if (result.userId === null && result.guestPlayerId === null) continue;
 
       const participantId = result.userId ?? `guest:${result.guestPlayerId}`;
@@ -109,9 +107,11 @@ export class LeaderboardService {
         totalCatanPoints: 0,
         victoryPoints: 0,
         fullWins: 0,
+        secondPlaces: 0,
+        thirdPlaces: 0,
         gamesPlayed: 0,
         positions: [],
-        tableResults: new Map<string, { myPosition: number; opponentCatanPoints: number[] }>(),
+        tableResults: new Map<string, { myPoints: number; tableTotal: number }>(),
       };
 
       existing.totalCatanPoints += result.catanPoints;
@@ -119,26 +119,25 @@ export class LeaderboardService {
       existing.gamesPlayed += 1;
       existing.positions.push(result.position);
       if (result.victoryPoints === 1) existing.fullWins += 1;
+      if (result.position === 2) existing.secondPlaces += 1;
+      if (result.position === 3) existing.thirdPlaces += 1;
 
       const tableId = result.table.id;
-      const opponentCatanPoints = (tableResultsMap.get(tableId) ?? [])
-        .filter((r) => r.participantId !== participantId)
-        .map((r) => r.catanPoints);
+      const tableTotal = tableTotalsMap.get(tableId) ?? result.catanPoints;
       existing.tableResults.set(tableId, {
-        myPosition: result.position,
-        opponentCatanPoints,
+        myPoints: result.catanPoints,
+        tableTotal,
       });
 
       playerMap.set(participantId, existing);
     }
 
     const entries: Omit<LeaderboardEntry, 'rank'>[] = Array.from(playerMap.values()).map((p) => {
-      let opponentStrength = 0;
-      for (const { myPosition, opponentCatanPoints } of p.tableResults.values()) {
-        if (myPosition === 1) {
-          opponentStrength += opponentCatanPoints.reduce((a, b) => a + b, 0);
-        }
+      let pointShareSum = 0;
+      for (const { myPoints, tableTotal } of p.tableResults.values()) {
+        pointShareSum += tableTotal > 0 ? myPoints / tableTotal : 0;
       }
+      const avgPointShare = p.tableResults.size > 0 ? pointShareSum / p.tableResults.size : 0;
 
       return {
         userId: p.userId,
@@ -150,12 +149,14 @@ export class LeaderboardService {
         totalCatanPoints: p.totalCatanPoints,
         victoryPoints: p.victoryPoints,
         fullWins: p.fullWins,
+        secondPlaces: p.secondPlaces,
+        thirdPlaces: p.thirdPlaces,
         gamesPlayed: p.gamesPlayed,
         avgPosition:
           p.positions.length > 0
             ? p.positions.reduce((a, b) => a + b, 0) / p.positions.length
             : null,
-        opponentStrength,
+        avgPointShare,
         isEliminated: false,
         qualifiedToNextStage: false,
       };
@@ -199,8 +200,6 @@ export class LeaderboardService {
     entries: Omit<LeaderboardEntry, 'rank'>[],
     tiebreakerOrder: string[],
   ): Omit<LeaderboardEntry, 'rank'>[] {
-    // Ensure victory_points is always at the start if not present, 
-    // to reflect that scoring is the primary rank factor.
     const order = [...tiebreakerOrder];
     if (!order.includes('victory_points') && !order.includes('points')) {
       order.unshift('victory_points');
@@ -211,20 +210,22 @@ export class LeaderboardService {
         let diff = 0;
         switch (criterion) {
           case 'victory_points':
-          case 'points': // Support both names
+          case 'points':
             diff = b.victoryPoints - a.victoryPoints;
             break;
           case 'catan_points':
             diff = b.totalCatanPoints - a.totalCatanPoints;
             break;
-          case 'wins':
-            diff = b.fullWins - a.fullWins;
+          case 'point_share':
+            diff = b.avgPointShare - a.avgPointShare;
             break;
-          case 'opponent_strength':
-            diff = b.opponentStrength - a.opponentStrength;
+          case 'second_places':
+            diff = b.secondPlaces - a.secondPlaces;
+            break;
+          case 'third_places':
+            diff = b.thirdPlaces - a.thirdPlaces;
             break;
           case 'avg_position':
-            // Lower avg position = better
             if (a.avgPosition !== null && b.avgPosition !== null) {
               diff = a.avgPosition - b.avgPosition;
             }

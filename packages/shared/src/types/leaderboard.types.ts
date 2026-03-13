@@ -7,9 +7,11 @@ export interface LeaderboardEntry {
   totalCatanPoints: number;
   victoryPoints: number;
   fullWins: number;
+  secondPlaces: number;
+  thirdPlaces: number;
   gamesPlayed: number;
   avgPosition: number | null;
-  opponentStrength: number;
+  avgPointShare: number; // average of (myPoints / tableTotalPoints) across all games
   eloRating: number;
   isGuest: boolean;
   isEliminated: boolean;
