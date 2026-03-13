@@ -163,14 +163,38 @@ function DiceHistogram({ counts, timesOne, timesMany, theoreticalCurve }: { coun
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
+interface SeatInfo {
+  seatNumber: number;
+  userId?: string;
+  guestPlayerId?: string;
+  displayName: string;
+}
+
 interface TableGameToolsProps {
   tournamentId: string;
   tableId: string;
+  seats: SeatInfo[];
+  currentUserId?: string;
 }
 
-export function TableGameTools({ tournamentId, tableId }: TableGameToolsProps) {
+export function TableGameTools({ tournamentId, tableId, seats, currentUserId }: TableGameToolsProps) {
   const { on, emit } = useSocket(tournamentId);
   const { t } = useTranslation();
+
+  // ── Turn state ──────────────────────────────────────────────────────────────
+  const [activeSeatNumber, setActiveSeatNumber] = useState(1);
+  const [rolledThisTurn, setRolledThisTurn] = useState(false);
+
+  const sortedSeats = [...seats].sort((a, b) => a.seatNumber - b.seatNumber);
+  const mySeat = sortedSeats.find((s) => s.userId && s.userId === currentUserId);
+  const isMyTurn = !!mySeat && mySeat.seatNumber === activeSeatNumber;
+  const activePlayer = sortedSeats.find((s) => s.seatNumber === activeSeatNumber);
+
+  const handlePassTurn = () => {
+    if (!isMyTurn || !rolledThisTurn) return;
+    const nextSeat = (activeSeatNumber % sortedSeats.length) + 1;
+    emit('table_turn_state', { tournamentId, tableId, activeSeatNumber: nextSeat, rolledThisTurn: false });
+  };
 
   const [dice, setDice] = useState<[number, number]>([1, 1]);
   const [displayDice, setDisplayDice] = useState<[number, number]>([1, 1]);
@@ -295,7 +319,14 @@ export function TableGameTools({ tournamentId, tableId }: TableGameToolsProps) {
       stopInterval(); setTimerRunning(false); setTimeLeft(TIMER_SECONDS); timerStartedAtRef.current = null; alertPlayedRef.current = false;
     });
 
-    return () => { unsubDice(); unsubStart(); unsubReset(); };
+    const unsubTurn = on('table_turn_state', (raw) => {
+      const data = raw as { tableId: string; activeSeatNumber: number; rolledThisTurn: boolean };
+      if (data.tableId !== tableId) return;
+      setActiveSeatNumber(data.activeSeatNumber);
+      setRolledThisTurn(data.rolledThisTurn);
+    });
+
+    return () => { unsubDice(); unsubStart(); unsubReset(); unsubTurn(); };
   }, [on, tableId, startCountdown]);
 
   useEffect(() => () => {
@@ -305,10 +336,11 @@ export function TableGameTools({ tournamentId, tableId }: TableGameToolsProps) {
   }, []);
 
   const handleRoll = () => {
-    if (rolling) return;
+    if (rolling || !isMyTurn || rolledThisTurn) return;
     const d1 = Math.ceil(Math.random() * 6);
     const d2 = Math.ceil(Math.random() * 6);
     emit('table_dice_roll', { tournamentId, tableId, dice1: d1, dice2: d2 });
+    emit('table_turn_state', { tournamentId, tableId, activeSeatNumber, rolledThisTurn: true });
   };
 
   // Register a physical dice result (no animation, just counts the number)
@@ -368,6 +400,25 @@ export function TableGameTools({ tournamentId, tableId }: TableGameToolsProps) {
           <Grid item xs={12} sm>
             <Typography variant="caption" sx={SECTION_LABEL}>{t.tableGameTools.dice}</Typography>
 
+            {/* Turn indicator */}
+            {sortedSeats.length > 0 && (
+              <Box sx={{ mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Box
+                  sx={{
+                    px: 1.5, py: 0.4,
+                    borderRadius: 2,
+                    bgcolor: isMyTurn ? 'primary.main' : 'action.selected',
+                    color: isMyTurn ? 'primary.contrastText' : 'text.secondary',
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    transition: 'background-color 0.3s',
+                  }}
+                >
+                  {isMyTurn ? t.tableGameTools.yourTurn : `${t.tableGameTools.turnOf} ${activePlayer?.displayName ?? '?'}`}
+                </Box>
+              </Box>
+            )}
+
             {/* App dice */}
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1.5 }}>
               <DieFace value={displayDice[0]} rolling={rolling} />
@@ -378,9 +429,22 @@ export function TableGameTools({ tournamentId, tableId }: TableGameToolsProps) {
                 )}
               </Box>
             </Box>
-            <Button variant="contained" size="small" onClick={handleRoll} disabled={rolling} sx={{ mb: 2 }}>
-              {rolling ? t.tableGameTools.rolling : t.tableGameTools.rollDice}
-            </Button>
+            <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+              <Button
+                variant="contained"
+                size="small"
+                onClick={handleRoll}
+                disabled={rolling || !isMyTurn || rolledThisTurn}
+                title={!isMyTurn ? t.tableGameTools.waitYourTurn : undefined}
+              >
+                {rolling ? t.tableGameTools.rolling : t.tableGameTools.rollDice}
+              </Button>
+              {isMyTurn && rolledThisTurn && (
+                <Button variant="outlined" size="small" onClick={handlePassTurn}>
+                  {t.tableGameTools.passTurn}
+                </Button>
+              )}
+            </Box>
 
             <Divider sx={{ mb: 1.5 }} />
 

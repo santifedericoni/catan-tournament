@@ -13,4 +13,5 @@ export type TournamentEvent =
   | 'dispute_resolved'
   | 'table_dice_roll'
   | 'table_timer_start'
-  | 'table_timer_reset';
+  | 'table_timer_reset'
+  | 'table_turn_state';

@@ -27,13 +27,18 @@ export interface TableDetail {
 
 export interface SeatDetail {
   id: string;
-  userId: string;
+  userId: string | null;
+  guestPlayerId: string | null;
   seatNumber: number;
   user: {
     id: string;
     displayName: string;
     alias: string | null;
-  };
+  } | null;
+  guestPlayer: {
+    id: string;
+    name: string;
+  } | null;
 }
 
 export interface ResultDetail {

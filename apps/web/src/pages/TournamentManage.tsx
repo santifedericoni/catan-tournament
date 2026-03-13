@@ -284,7 +284,7 @@ function ResultEntryForm({
                     const seat = table.seats.find((s) => s.userId === entry.userId);
                     return (
                       <Typography key={entry.userId} variant="body2">
-                        {seat?.user.displayName ?? entry.userId}: {entry.catanPoints} pts
+                        {seat?.user?.displayName ?? entry.userId}: {entry.catanPoints} pts
                       </Typography>
                     );
                   })}
@@ -475,6 +475,7 @@ export function TournamentManage() {
   const [registrations, setRegistrations] = useState<RegistrationDetail[]>([]);
   const [auditLog, setAuditLog] = useState<unknown[]>([]);
   const [currentRoundDetail, setCurrentRoundDetail] = useState<RoundDetail | null>(null);
+  const [selectedRoundId, setSelectedRoundId] = useState<string | 'IN_PROGRESS'>('IN_PROGRESS');
   const [tab, setTab] = useState(0);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
@@ -509,11 +510,17 @@ export function TournamentManage() {
     if (tab !== 2 || !tournament || !id) return;
     const allRounds = tournament.stages?.flatMap((s) => s.rounds) ?? [];
     const inProgressRound = allRounds.find((r) => r.status === 'IN_PROGRESS');
-    if (!inProgressRound) { setCurrentRoundDetail(null); return; }
-    roundsApi.getRound(id, inProgressRound.id)
+
+    // Auto-select: prefer in-progress, else keep selectedRoundId if valid
+    const targetId = selectedRoundId === 'IN_PROGRESS'
+      ? inProgressRound?.id ?? null
+      : selectedRoundId;
+
+    if (!targetId) { setCurrentRoundDetail(null); return; }
+    roundsApi.getRound(id, targetId)
       .then((detail) => setCurrentRoundDetail(detail as RoundDetail))
       .catch(() => setCurrentRoundDetail(null));
-  }, [tab, tournament, id]);
+  }, [tab, tournament, id, selectedRoundId]);
 
   const handleTransition = async (action: string) => {
     if (!id) return;
@@ -889,32 +896,130 @@ export function TournamentManage() {
       )}
 
       {/* Results tab */}
-      {tab === 2 && (
-        <Box>
-          {!currentRoundDetail ? (
-            <Alert severity="info">{t.tournamentManage.noRoundInProgress}</Alert>
-          ) : (
-            <Box>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                <Typography variant="h6">
-                  {t.tournamentManage.roundResultsTitle.replace('{n}', String(currentRoundDetail.roundNumber))}
-                </Typography>
-                <Button size="small" variant="outlined" onClick={reloadCurrentRound}>{t.common.refresh}</Button>
-              </Box>
-              <Alert severity="info" sx={{ mb: 2 }}>
-                {t.tournamentManage.resultEntryHelp}
-              </Alert>
-              <Grid container spacing={2}>
-                {currentRoundDetail.tables.map((table) => (
-                  <Grid item xs={12} md={6} key={table.id}>
-                    <ResultEntryForm table={table} tournamentId={id!} onSubmitted={reloadCurrentRound} />
-                  </Grid>
-                ))}
-              </Grid>
-            </Box>
-          )}
-        </Box>
-      )}
+      {tab === 2 && (() => {
+        const allRounds = tournamentData.stages?.flatMap((s) => s.rounds) ?? [];
+        const inProgressRound = allRounds.find((r) => r.status === 'IN_PROGRESS');
+        const effectiveRoundId = selectedRoundId === 'IN_PROGRESS'
+          ? (inProgressRound?.id ?? null)
+          : selectedRoundId;
+        const isReadOnly = currentRoundDetail ? currentRoundDetail.status !== 'IN_PROGRESS' : false;
+
+        return (
+          <Box>
+            {/* Round selector */}
+            {allRounds.length === 0 ? (
+              <Alert severity="info">{t.tournamentManage.noRoundsExist}</Alert>
+            ) : (
+              <>
+                <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', mb: 3, flexWrap: 'wrap' }}>
+                  <FormControl size="small" sx={{ minWidth: 220 }}>
+                    <InputLabel>{t.tournamentManage.selectRound}</InputLabel>
+                    <Select
+                      value={effectiveRoundId ?? ''}
+                      label={t.tournamentManage.selectRound}
+                      onChange={(e) => setSelectedRoundId(e.target.value)}
+                    >
+                      {allRounds.map((r) => {
+                        const stageName = tournamentData.stages?.find((s) => s.rounds.some((rr) => rr.id === r.id))?.type ?? '';
+                        return (
+                          <MenuItem key={r.id} value={r.id}>
+                            {stageName} — {t.tournamentManage.roundLabel.replace('{n}', String(r.roundNumber))} ({r.status})
+                          </MenuItem>
+                        );
+                      })}
+                    </Select>
+                  </FormControl>
+                  <Button size="small" variant="outlined" onClick={reloadCurrentRound}>{t.common.refresh}</Button>
+                </Box>
+
+                {!currentRoundDetail && effectiveRoundId && (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}><CircularProgress /></Box>
+                )}
+
+                {!effectiveRoundId && (
+                  <Alert severity="info">{t.tournamentManage.noRoundInProgress}</Alert>
+                )}
+
+                {currentRoundDetail && (
+                  <Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 1 }}>
+                      <Box>
+                        <Typography variant="h6">
+                          {isReadOnly
+                            ? t.tournamentManage.roundResultsReadTitle.replace('{n}', String(currentRoundDetail.roundNumber))
+                            : t.tournamentManage.roundResultsTitle.replace('{n}', String(currentRoundDetail.roundNumber))
+                          }
+                        </Typography>
+                        {currentRoundDetail.completedAt && (
+                          <Typography variant="caption" color="text.secondary">
+                            {t.tournamentManage.roundCompletedAt.replace('{date}', new Date(currentRoundDetail.completedAt).toLocaleString())}
+                          </Typography>
+                        )}
+                      </Box>
+                      {!isReadOnly && (
+                        <Alert severity="info" sx={{ flex: 1, ml: 2 }}>
+                          {t.tournamentManage.resultEntryHelp}
+                        </Alert>
+                      )}
+                    </Box>
+
+                    <Grid container spacing={2}>
+                      {currentRoundDetail.tables.map((table) => (
+                        <Grid item xs={12} md={6} key={table.id}>
+                          {isReadOnly ? (
+                            <Card variant="outlined" sx={{ mb: 2 }}>
+                              <CardContent>
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                                  <Typography variant="subtitle2" fontWeight={700}>
+                                    {t.tournamentManage.tableTitle.replace('{n}', String(table.tableNumber))}
+                                  </Typography>
+                                  <Chip
+                                    label={table.resultStatus ?? 'PENDING'}
+                                    size="small"
+                                    color={({ OFFICIAL: 'info', CONFIRMED: 'success', DISPUTED: 'error', PENDING: 'default' } as const)[table.resultStatus as string] ?? 'default'}
+                                  />
+                                </Box>
+                                {table.results.length === 0 ? (
+                                  <Typography variant="body2" color="text.secondary">{t.tournamentManage.noResults}</Typography>
+                                ) : (
+                                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                                    {[...table.results]
+                                      .sort((a, b) => b.catanPoints - a.catanPoints || a.position - b.position)
+                                      .map((result) => {
+                                        const seat = table.seats.find((s) =>
+                                          result.userId ? s.userId === result.userId : s.guestPlayerId === (result as any).guestPlayerId
+                                        );
+                                        const name = seat ? getSeatDisplayName(seat, '?') : result.userId;
+                                        return (
+                                          <Box key={result.id} sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                                            <Typography variant="body2" sx={{ minWidth: 28, fontWeight: 700, color: 'text.secondary' }}>
+                                              {result.position}°
+                                            </Typography>
+                                            <Typography variant="body2" sx={{ flex: 1 }}>{name}</Typography>
+                                            <Typography variant="body2" fontWeight={700}>{result.catanPoints} pts</Typography>
+                                            {result.victoryPoints > 0 && (
+                                              <Chip label={`${result.victoryPoints} VP`} size="small" color="primary" />
+                                            )}
+                                          </Box>
+                                        );
+                                      })}
+                                  </Box>
+                                )}
+                              </CardContent>
+                            </Card>
+                          ) : (
+                            <ResultEntryForm table={table} tournamentId={id!} onSubmitted={reloadCurrentRound} />
+                          )}
+                        </Grid>
+                      ))}
+                    </Grid>
+                  </Box>
+                )}
+              </>
+            )}
+          </Box>
+        );
+      })()}
 
       {/* Leaderboard tab */}
       {tab === 3 && (

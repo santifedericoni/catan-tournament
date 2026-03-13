@@ -273,7 +273,17 @@ export function TournamentDetail() {
             currentUserId={user?.id}
             onRefresh={load}
           />
-          <TableGameTools tournamentId={id!} tableId={myTable.id} />
+          <TableGameTools
+            tournamentId={id!}
+            tableId={myTable.id}
+            seats={myTable.seats.map((s) => ({
+              seatNumber: s.seatNumber,
+              userId: s.userId ?? undefined,
+              guestPlayerId: s.guestPlayerId ?? undefined,
+              displayName: s.user?.displayName ?? s.guestPlayer?.name ?? 'Jugador',
+            }))}
+            currentUserId={user?.id}
+          />
         </Box>
       )}
 
