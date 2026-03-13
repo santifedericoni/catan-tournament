@@ -541,7 +541,7 @@ export function TournamentManage() {
       setActionLoading(false);
     }
   };
-
+  //
   const handleRegistrationAction = async (userId: string, status: 'APPROVED' | 'REJECTED' | 'REMOVED') => {
     if (!id) return;
     setActionLoading(true);
@@ -1026,7 +1026,7 @@ export function TournamentManage() {
         <Box>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
             <Typography variant="h6">{t.tournamentManage.leaderboardTitle}</Typography>
-            <Button size="small" variant="outlined" onClick={() => id && tournamentsApi.getLeaderboard(id).then(setLeaderboard).catch(() => {})}>
+            <Button size="small" variant="outlined" onClick={() => id && tournamentsApi.getLeaderboard(id).then(setLeaderboard).catch(() => { })}>
               {t.common.refresh}
             </Button>
           </Box>
