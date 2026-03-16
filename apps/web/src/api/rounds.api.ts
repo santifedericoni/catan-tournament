@@ -47,7 +47,7 @@ export const roundsApi = {
   submitPlayerScores: (
     tournamentId: string,
     tableId: string,
-    results: Array<{ userId: string; catanPoints: number }>,
+    results: Array<{ participantId: string; catanPoints: number }>,
     endedReason?: 'NORMAL' | 'TIME_LIMIT',
   ) =>
     apiClient

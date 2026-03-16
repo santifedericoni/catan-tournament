@@ -4,7 +4,7 @@ import { TableGenerationMode } from '../enums/table-generation-mode.enum';
 import { RegistrationStatus } from '../enums/registration-status.enum';
 import { TournamentRole } from '../enums/tournament-role.enum';
 
-export type TiebreakerCriterion = 'victory_points' | 'catan_points' | 'wins' | 'opponent_strength' | 'avg_position';
+export type TiebreakerCriterion = 'victory_points' | 'catan_points' | 'wins' | 'opponent_strength' | 'avg_position' | 'point_share' | 'second_places' | 'third_places';
 
 export interface TournamentSummary {
   id: string;
