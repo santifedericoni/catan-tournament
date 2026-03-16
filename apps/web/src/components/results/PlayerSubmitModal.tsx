@@ -87,7 +87,7 @@ export function PlayerSubmitModal({
     setError('');
     setSubmitting(true);
     try {
-      const results = seats.map((s) => ({ userId: s.userId as string, catanPoints: scores[getParticipantId(s)] ?? 0 }));
+      const results = seats.map((s) => ({ participantId: getParticipantId(s), catanPoints: scores[getParticipantId(s)] ?? 0 }));
       await roundsApi.submitPlayerScores(tournamentId, tableId, results, endedReason);
       onSubmitted();
       onClose();

@@ -186,7 +186,12 @@ export class LeaguesService {
       totalCatanPoints: number;
       tournamentsPlayed: number;
       fullWins: number;
+      secondPlaces: number;
+      thirdPlaces: number;
       eloRating: number | null;
+      positionsSum: number;
+      gamesPlayed: number;
+      pointShareSum: number;
     }>();
 
     for (const tournament of league.tournaments) {
@@ -200,6 +205,11 @@ export class LeaguesService {
             existing.totalCatanPoints += entry.totalCatanPoints;
             existing.tournamentsPlayed += 1;
             existing.fullWins += entry.fullWins;
+            existing.secondPlaces += entry.secondPlaces;
+            existing.thirdPlaces += entry.thirdPlaces;
+            existing.gamesPlayed += entry.gamesPlayed;
+            if (entry.avgPosition !== null) existing.positionsSum += entry.avgPosition * entry.gamesPlayed;
+            existing.pointShareSum += entry.avgPointShare * entry.gamesPlayed;
           } else {
             playerMap.set(key, {
               playerId: key,
@@ -210,7 +220,12 @@ export class LeaguesService {
               totalCatanPoints: entry.totalCatanPoints,
               tournamentsPlayed: 1,
               fullWins: entry.fullWins,
+              secondPlaces: entry.secondPlaces,
+              thirdPlaces: entry.thirdPlaces,
               eloRating: entry.isGuest ? null : entry.eloRating,
+              gamesPlayed: entry.gamesPlayed,
+              positionsSum: entry.avgPosition !== null ? entry.avgPosition * entry.gamesPlayed : 0,
+              pointShareSum: entry.avgPointShare * entry.gamesPlayed,
             });
           }
         }
@@ -219,9 +234,13 @@ export class LeaguesService {
       }
     }
 
-    const entries = Array.from(playerMap.values());
+    const entries = Array.from(playerMap.values()).map((p) => ({
+      ...p,
+      avgPosition: p.gamesPlayed > 0 ? p.positionsSum / p.gamesPlayed : null,
+      avgPointShare: p.gamesPlayed > 0 ? p.pointShareSum / p.gamesPlayed : 0,
+    }));
 
-    // Apply tiebreakers: primary is totalVictoryPoints
+    // Apply tiebreakers
     const sorted = entries.sort((a, b) => {
       for (const criterion of tiebreakerOrder) {
         let diff = 0;
@@ -235,6 +254,20 @@ export class LeaguesService {
             break;
           case 'wins':
             diff = b.fullWins - a.fullWins;
+            break;
+          case 'second_places':
+            diff = b.secondPlaces - a.secondPlaces;
+            break;
+          case 'third_places':
+            diff = b.thirdPlaces - a.thirdPlaces;
+            break;
+          case 'point_share':
+            diff = b.avgPointShare - a.avgPointShare;
+            break;
+          case 'avg_position':
+            if (a.avgPosition !== null && b.avgPosition !== null) {
+              diff = a.avgPosition - b.avgPosition;
+            }
             break;
         }
         if (Math.abs(diff) > 0.0001) return diff > 0 ? 1 : -1;

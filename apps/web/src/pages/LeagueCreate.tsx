@@ -49,7 +49,7 @@ export function LeagueCreate() {
         name: form.name,
         description: form.description || undefined,
         format: form.format,
-        tiebreakerOrder: ['victory_points', 'wins', 'opponent_strength', 'avg_position'],
+        tiebreakerOrder: ['victory_points', 'catan_points', 'point_share', 'second_places', 'third_places', 'avg_position'],
       });
       navigate(`/leagues/${league.id}`);
     } catch (err: unknown) {

@@ -111,7 +111,7 @@ export function TournamentCreate() {
         maxPlayers: Number(form.maxPlayers),
         format: form.format,
         numberOfRounds: isNRoundsFormat ? Number(form.numberOfRounds) : undefined,
-        tiebreakerOrder: ['victory_points', 'wins', 'opponent_strength', 'avg_position'],
+        tiebreakerOrder: ['victory_points', 'catan_points', 'point_share', 'second_places', 'third_places', 'avg_position'],
       });
       navigate(`/tournaments/${tournament.id}/manage`);
     } catch (err: unknown) {
