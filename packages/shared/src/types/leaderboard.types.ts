@@ -22,12 +22,18 @@ export interface LeagueLeaderboardEntry {
   rank: number;
   playerId: string;
   displayName: string;
+  alias: string | null;
   isGuest: boolean;
   country: string | null;
   totalVictoryPoints: number;
   totalCatanPoints: number;
   tournamentsPlayed: number;
   fullWins: number;
+  secondPlaces: number;
+  thirdPlaces: number;
+  gamesPlayed: number;
+  avgPosition: number | null;
+  avgPointShare: number;
   eloRating: number | null;
 }
 

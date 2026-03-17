@@ -76,6 +76,12 @@ export function Login() {
             </Button>
           </Box>
 
+          <Typography variant="body2" textAlign="center" mt={1}>
+            <Link component={RouterLink} to="/forgot-password">
+              {t.forgotPassword.linkText}
+            </Link>
+          </Typography>
+
           <Typography variant="body2" textAlign="center" mt={2}>
             {t.login.noAccount}{' '}
             <Link component={RouterLink} to="/register">

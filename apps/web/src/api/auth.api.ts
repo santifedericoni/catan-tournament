@@ -1,5 +1,5 @@
 import { apiClient } from './client';
-import type { RegisterDto, LoginDto, AuthResponse, RefreshResponse } from '@catan/shared';
+import type { RegisterDto, LoginDto, AuthResponse, RefreshResponse, ForgotPasswordRequest, ResetPasswordRequest, MessageResponse } from '@catan/shared';
 
 export const authApi = {
   register: (dto: RegisterDto): Promise<AuthResponse> =>
@@ -16,4 +16,10 @@ export const authApi = {
 
   me: (): Promise<AuthResponse['user']> =>
     apiClient.get('/auth/me').then((r) => r.data),
+
+  forgotPassword: (dto: ForgotPasswordRequest): Promise<MessageResponse> =>
+    apiClient.post('/auth/forgot-password', dto).then((r) => r.data),
+
+  resetPassword: (dto: ResetPasswordRequest): Promise<MessageResponse> =>
+    apiClient.post('/auth/reset-password', dto).then((r) => r.data),
 };

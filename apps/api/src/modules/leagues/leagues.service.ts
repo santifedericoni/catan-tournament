@@ -171,8 +171,10 @@ export class LeaguesService {
 
     const tiebreakerOrder = (league.tiebreakerOrder as string[]) ?? [
       'victory_points',
-      'wins',
-      'opponent_strength',
+      'catan_points',
+      'point_share',
+      'second_places',
+      'third_places',
       'avg_position',
     ];
 
@@ -180,6 +182,7 @@ export class LeaguesService {
     const playerMap = new Map<string, {
       playerId: string;
       displayName: string;
+      alias: string | null;
       isGuest: boolean;
       country: string | null;
       totalVictoryPoints: number;
@@ -214,6 +217,7 @@ export class LeaguesService {
             playerMap.set(key, {
               playerId: key,
               displayName: entry.displayName,
+              alias: entry.alias,
               isGuest: entry.isGuest,
               country: entry.country,
               totalVictoryPoints: entry.victoryPoints,

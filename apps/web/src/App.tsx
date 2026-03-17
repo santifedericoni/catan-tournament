@@ -11,6 +11,8 @@ import { UserProfile } from './pages/UserProfile';
 import { LeagueCreate } from './pages/LeagueCreate';
 import { LeagueDetail } from './pages/LeagueDetail';
 import { CreatePicker } from './pages/CreatePicker';
+import { ForgotPassword } from './pages/ForgotPassword';
+import { ResetPassword } from './pages/ResetPassword';
 
 export default function App() {
   return (
@@ -31,6 +33,8 @@ export default function App() {
 
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
