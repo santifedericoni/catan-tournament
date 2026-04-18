@@ -350,6 +350,7 @@ export const translations = {
       turnOf: 'Turn:',
       waitYourTurn: 'Wait for your turn',
       passTurn: 'Pass turn',
+      turnOrder: 'Turn order',
     },
     manualAssignment: {
       title: 'Manual assignment — Round {n}',
@@ -762,6 +763,7 @@ export const translations = {
       turnOf: 'Turno:',
       waitYourTurn: 'Esperá tu turno',
       passTurn: 'Pasar turno',
+      turnOrder: 'Orden de turno',
     },
     manualAssignment: {
       title: 'Asignación manual — Ronda {n}',

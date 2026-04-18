@@ -76,6 +76,7 @@ export class RoundsService {
         where: { table: { roundId } },
       });
       await this.prisma.table.deleteMany({ where: { roundId } });
+      await this.prisma.matchupHistory.deleteMany({ where: { roundId } });
     }
 
     // Get approved/checked-in players (including guest players)

@@ -26,7 +26,7 @@ export class LeaguesService {
           name: dto.name,
           description: dto.description,
           format: dto.format,
-          tiebreakerOrder: dto.tiebreakerOrder ?? ['victory_points', 'wins', 'opponent_strength', 'avg_position'],
+          tiebreakerOrder: dto.tiebreakerOrder ?? ['victory_points', 'catan_points', 'point_share', 'second_places', 'third_places', 'avg_position'],
           tableGenerationMode: dto.tableGenerationMode ?? 'RANDOM',
           createdBy: actorId,
         },
@@ -169,7 +169,7 @@ export class LeaguesService {
     });
     if (!league) throw new NotFoundException('League not found');
 
-    const tiebreakerOrder = (league.tiebreakerOrder as string[]) ?? [
+    const tiebreakerOrder: string[] = [
       'victory_points',
       'catan_points',
       'point_share',

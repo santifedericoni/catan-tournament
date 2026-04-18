@@ -13,7 +13,7 @@ import { useTranslation } from '../../hooks/useTranslation';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 const TIMER_SECONDS = 120;
-const ROLL_ANIMATION_MS = 800;
+const ROLL_ANIMATION_MS = 1000;
 const ROLL_TICK_MS = 60;
 
 // ─── Dice SVG ────────────────────────────────────────────────────────────────
@@ -45,13 +45,16 @@ function DieFace({ value, rolling, size = 72 }: { value: number; rolling: boolea
         justifyContent: 'center',
         flexShrink: 0,
         transition: 'background-color 0.15s, border-color 0.15s, box-shadow 0.15s',
-        animation: rolling ? 'diceFlip 0.18s linear infinite' : 'none',
-        '@keyframes diceFlip': {
-          '0%':   { transform: 'rotateY(0deg) scale(1.08)' },
-          '25%':  { transform: 'rotateY(90deg) scale(0.92)' },
-          '50%':  { transform: 'rotateY(180deg) scale(1.06)' },
-          '75%':  { transform: 'rotateY(270deg) scale(0.94)' },
-          '100%': { transform: 'rotateY(360deg) scale(1.08)' },
+        perspective: '400px',
+        animation: rolling ? 'diceRoll 0.22s ease-in-out infinite' : 'none',
+        '@keyframes diceRoll': {
+          '0%':   { transform: 'rotateX(0deg)   rotateY(0deg)   rotateZ(0deg)   scale(1.05)' },
+          '15%':  { transform: 'rotateX(180deg) rotateY(90deg)  rotateZ(45deg)  scale(0.9)'  },
+          '30%':  { transform: 'rotateX(270deg) rotateY(200deg) rotateZ(90deg)  scale(1.08)' },
+          '50%':  { transform: 'rotateX(360deg) rotateY(300deg) rotateZ(180deg) scale(0.88)' },
+          '70%':  { transform: 'rotateX(450deg) rotateY(420deg) rotateZ(240deg) scale(1.06)' },
+          '85%':  { transform: 'rotateX(540deg) rotateY(500deg) rotateZ(300deg) scale(0.92)' },
+          '100%': { transform: 'rotateX(720deg) rotateY(630deg) rotateZ(360deg) scale(1.05)' },
         },
       }}
     >
@@ -182,18 +185,53 @@ export function TableGameTools({ tournamentId, tableId, seats, currentUserId }: 
   const { t } = useTranslation();
 
   // ── Turn state ──────────────────────────────────────────────────────────────
-  const [activeSeatNumber, setActiveSeatNumber] = useState(1);
-  const [rolledThisTurn, setRolledThisTurn] = useState(false);
+  const defaultSeats = [...seats].sort((a, b) => a.seatNumber - b.seatNumber);
 
-  const sortedSeats = [...seats].sort((a, b) => a.seatNumber - b.seatNumber);
-  const mySeat = sortedSeats.find((s) => s.userId && s.userId === currentUserId);
-  const isMyTurn = !!mySeat && mySeat.seatNumber === activeSeatNumber;
-  const activePlayer = sortedSeats.find((s) => s.seatNumber === activeSeatNumber);
+  // playerOrder: array of seat keys in turn order (can be reordered before first roll)
+  const [playerOrder, setPlayerOrder] = useState<string[]>(
+    defaultSeats.map((s) => s.userId ?? `guest:${s.guestPlayerId}`)
+  );
+  const [activeTurnIndex, setActiveTurnIndex] = useState(0); // index into playerOrder
+  const [rolledThisTurn, setRolledThisTurn] = useState(false);
+  const [gameStarted, setGameStarted] = useState(false); // locked once first roll happens
+
+  // Drag state
+  const dragIndexRef = useRef<number | null>(null);
+
+  // Derive ordered seats from playerOrder
+  const orderedSeats = playerOrder
+    .map((key) => defaultSeats.find((s) => (s.userId ?? `guest:${s.guestPlayerId}`) === key))
+    .filter(Boolean) as typeof defaultSeats;
+
+  const myKey = currentUserId
+    ? defaultSeats.find((s) => s.userId === currentUserId) ? currentUserId : undefined
+    : undefined;
+  const myTurnIndex = myKey !== undefined ? playerOrder.indexOf(myKey) : -1;
+  const isMyTurn = myTurnIndex !== -1 && myTurnIndex === activeTurnIndex;
+  const activePlayer = orderedSeats[activeTurnIndex];
+  const isInTable = myKey !== undefined && playerOrder.includes(myKey);
 
   const handlePassTurn = () => {
     if (!isMyTurn || !rolledThisTurn) return;
-    const nextSeat = (activeSeatNumber % sortedSeats.length) + 1;
-    emit('table_turn_state', { tournamentId, tableId, activeSeatNumber: nextSeat, rolledThisTurn: false });
+    const nextIndex = (activeTurnIndex + 1) % playerOrder.length;
+    emit('table_turn_state', { tournamentId, tableId, activeTurnIndex: nextIndex, rolledThisTurn: false, playerOrder, gameStarted });
+  };
+
+  // Drag & drop handlers (HTML5 native)
+  const handleDragStart = (index: number) => { dragIndexRef.current = index; };
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    const from = dragIndexRef.current;
+    if (from === null || from === index) return;
+    const next = [...playerOrder];
+    const [moved] = next.splice(from, 1);
+    next.splice(index, 0, moved);
+    dragIndexRef.current = index;
+    setPlayerOrder(next);
+  };
+  const handleDragEnd = () => {
+    dragIndexRef.current = null;
+    emit('table_turn_state', { tournamentId, tableId, activeTurnIndex, rolledThisTurn, playerOrder, gameStarted });
   };
 
   const [dice, setDice] = useState<[number, number]>([1, 1]);
@@ -204,11 +242,13 @@ export function TableGameTools({ tournamentId, tableId, seats, currentUserId }: 
   const rollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const rollTickRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  const [timerDuration, setTimerDuration] = useState(TIMER_SECONDS);
   const [timeLeft, setTimeLeft] = useState(TIMER_SECONDS);
   const [timerRunning, setTimerRunning] = useState(false);
   const timerStartedAtRef = useRef<number | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const alertPlayedRef = useRef(false);
+  const timerDurationRef = useRef(TIMER_SECONDS); // ref so startCountdown closure stays fresh
 
   // Three short alarm beeps at 30s remaining
   const playAlertSound = useCallback(() => {
@@ -271,13 +311,14 @@ export function TableGameTools({ tournamentId, tableId, seats, currentUserId }: 
     if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
   };
 
-  const startCountdown = useCallback((startedAt: number) => {
+  const startCountdown = useCallback((startedAt: number, duration?: number) => {
+    const secs = duration ?? timerDurationRef.current;
     stopInterval();
     timerStartedAtRef.current = startedAt;
     alertPlayedRef.current = false;
     setTimerRunning(true);
     intervalRef.current = setInterval(() => {
-      const remaining = Math.max(0, TIMER_SECONDS - Math.floor((Date.now() - startedAt) / 1000));
+      const remaining = Math.max(0, secs - Math.floor((Date.now() - startedAt) / 1000));
       setTimeLeft(remaining);
       if (remaining === 30 && !alertPlayedRef.current) {
         alertPlayedRef.current = true;
@@ -308,25 +349,42 @@ export function TableGameTools({ tournamentId, tableId, seats, currentUserId }: 
     });
 
     const unsubStart = on('table_timer_start', (raw) => {
-      const data = raw as { tableId: string; startedAt: number };
+      const data = raw as { tableId: string; startedAt: number; duration: number };
       if (data.tableId !== tableId) return;
-      startCountdown(data.startedAt);
+      timerDurationRef.current = data.duration;
+      setTimerDuration(data.duration);
+      setTimeLeft(data.duration);
+      startCountdown(data.startedAt, data.duration);
     });
 
     const unsubReset = on('table_timer_reset', (raw) => {
-      const data = raw as { tableId: string };
+      const data = raw as { tableId: string; duration: number };
       if (data.tableId !== tableId) return;
-      stopInterval(); setTimerRunning(false); setTimeLeft(TIMER_SECONDS); timerStartedAtRef.current = null; alertPlayedRef.current = false;
+      stopInterval(); setTimerRunning(false);
+      setTimeLeft(data.duration);
+      timerDurationRef.current = data.duration;
+      setTimerDuration(data.duration);
+      timerStartedAtRef.current = null; alertPlayedRef.current = false;
+    });
+
+    const unsubConfig = on('table_timer_config', (raw) => {
+      const data = raw as { tableId: string; duration: number };
+      if (data.tableId !== tableId) return;
+      timerDurationRef.current = data.duration;
+      setTimerDuration(data.duration);
+      setTimeLeft(data.duration);
     });
 
     const unsubTurn = on('table_turn_state', (raw) => {
-      const data = raw as { tableId: string; activeSeatNumber: number; rolledThisTurn: boolean };
+      const data = raw as { tableId: string; activeTurnIndex: number; rolledThisTurn: boolean; playerOrder?: string[]; gameStarted?: boolean };
       if (data.tableId !== tableId) return;
-      setActiveSeatNumber(data.activeSeatNumber);
+      setActiveTurnIndex(data.activeTurnIndex);
       setRolledThisTurn(data.rolledThisTurn);
+      if (data.playerOrder) setPlayerOrder(data.playerOrder);
+      if (data.gameStarted !== undefined) setGameStarted(data.gameStarted);
     });
 
-    return () => { unsubDice(); unsubStart(); unsubReset(); unsubTurn(); };
+    return () => { unsubDice(); unsubStart(); unsubReset(); unsubConfig(); unsubTurn(); };
   }, [on, tableId, startCountdown]);
 
   useEffect(() => () => {
@@ -339,8 +397,10 @@ export function TableGameTools({ tournamentId, tableId, seats, currentUserId }: 
     if (rolling || !isMyTurn || rolledThisTurn) return;
     const d1 = Math.ceil(Math.random() * 6);
     const d2 = Math.ceil(Math.random() * 6);
+    const nextGameStarted = true;
     emit('table_dice_roll', { tournamentId, tableId, dice1: d1, dice2: d2 });
-    emit('table_turn_state', { tournamentId, tableId, activeSeatNumber, rolledThisTurn: true });
+    emit('table_turn_state', { tournamentId, tableId, activeTurnIndex, rolledThisTurn: true, playerOrder, gameStarted: nextGameStarted });
+    setGameStarted(nextGameStarted);
   };
 
   // Register a physical dice result (no animation, just counts the number)
@@ -353,11 +413,19 @@ export function TableGameTools({ tournamentId, tableId, seats, currentUserId }: 
 
   const handleTimerStart = () => {
     if (timerRunning || timeLeft === 0) return;
-    emit('table_timer_start', { tournamentId, tableId, startedAt: Date.now() });
+    emit('table_timer_start', { tournamentId, tableId, startedAt: Date.now(), duration: timerDurationRef.current });
   };
 
   const handleTimerReset = () => {
-    emit('table_timer_reset', { tournamentId, tableId });
+    emit('table_timer_reset', { tournamentId, tableId, duration: timerDurationRef.current });
+  };
+
+  const handleDurationChange = (secs: number) => {
+    if (timerRunning) return;
+    timerDurationRef.current = secs;
+    setTimerDuration(secs);
+    setTimeLeft(secs);
+    emit('table_timer_config', { tournamentId, tableId, duration: secs });
   };
 
   const mins = String(Math.floor(timeLeft / 60)).padStart(2, '0');
@@ -383,7 +451,7 @@ export function TableGameTools({ tournamentId, tableId, seats, currentUserId }: 
             >
               {mins}:{secs}
             </Typography>
-            <Box sx={{ display: 'flex', gap: 1 }}>
+            <Box sx={{ display: 'flex', gap: 1, mb: 1.5 }}>
               <Button size="small" variant="contained" onClick={handleTimerStart} disabled={timerRunning || timeLeft === 0}>
                 {t.tableGameTools.start}
               </Button>
@@ -391,6 +459,32 @@ export function TableGameTools({ tournamentId, tableId, seats, currentUserId }: 
                 {t.tableGameTools.reset}
               </Button>
             </Box>
+            {!timerRunning && (
+              <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                {[60, 90, 120, 180, 300].map((s) => (
+                  <Box
+                    key={s}
+                    onClick={() => handleDurationChange(s)}
+                    sx={{
+                      px: 1, py: 0.25,
+                      borderRadius: 1,
+                      border: '1px solid',
+                      borderColor: timerDuration === s ? 'primary.main' : 'divider',
+                      bgcolor: timerDuration === s ? 'primary.main' : 'transparent',
+                      color: timerDuration === s ? 'primary.contrastText' : 'text.secondary',
+                      fontSize: '0.7rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      userSelect: 'none',
+                      '&:hover': { borderColor: 'primary.main', color: 'primary.main',
+                        ...(timerDuration === s && { color: 'primary.contrastText' }) },
+                    }}
+                  >
+                    {s < 60 ? `${s}s` : `${s / 60}m`}
+                  </Box>
+                ))}
+              </Box>
+            )}
           </Grid>
 
           <Divider orientation="vertical" flexItem sx={{ mx: 1, display: { xs: 'none', sm: 'block' } }} />
@@ -400,22 +494,72 @@ export function TableGameTools({ tournamentId, tableId, seats, currentUserId }: 
           <Grid item xs={12} sm>
             <Typography variant="caption" sx={SECTION_LABEL}>{t.tableGameTools.dice}</Typography>
 
-            {/* Turn indicator */}
-            {sortedSeats.length > 0 && (
-              <Box sx={{ mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Box
-                  sx={{
-                    px: 1.5, py: 0.4,
-                    borderRadius: 2,
-                    bgcolor: isMyTurn ? 'primary.main' : 'action.selected',
-                    color: isMyTurn ? 'primary.contrastText' : 'text.secondary',
-                    fontSize: '0.75rem',
-                    fontWeight: 600,
-                    transition: 'background-color 0.3s',
-                  }}
-                >
-                  {isMyTurn ? t.tableGameTools.yourTurn : `${t.tableGameTools.turnOf} ${activePlayer?.displayName ?? '?'}`}
-                </Box>
+            {/* Turn order: drag & drop before game starts, indicator during game */}
+            {orderedSeats.length > 0 && (
+              <Box sx={{ mb: 1.5 }}>
+                {!gameStarted ? (
+                  <Box>
+                    <Typography variant="caption" sx={{ ...SECTION_LABEL, mb: 0.5 }}>
+                      {t.tableGameTools.turnOrder}
+                    </Typography>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                      {orderedSeats.map((seat, i) => {
+                        const key = seat.userId ?? `guest:${seat.guestPlayerId}`;
+                        const isMe = seat.userId === currentUserId;
+                        return (
+                          <Box
+                            key={key}
+                            draggable={isInTable}
+                            onDragStart={() => handleDragStart(i)}
+                            onDragOver={(e) => handleDragOver(e, i)}
+                            onDragEnd={handleDragEnd}
+                            sx={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 1,
+                              px: 1,
+                              py: 0.4,
+                              borderRadius: 1.5,
+                              border: '1px solid',
+                              borderColor: isMe ? 'primary.main' : 'divider',
+                              bgcolor: isMe ? 'primary.main' : 'action.hover',
+                              color: isMe ? 'primary.contrastText' : 'text.primary',
+                              cursor: isInTable ? 'grab' : 'default',
+                              userSelect: 'none',
+                              '&:active': { cursor: isInTable ? 'grabbing' : 'default' },
+                            }}
+                          >
+                            <Typography variant="caption" sx={{ opacity: 0.5, minWidth: 14 }}>
+                              {i + 1}.
+                            </Typography>
+                            <Typography variant="caption" fontWeight={isMe ? 700 : 400} sx={{ flex: 1 }}>
+                              {seat.displayName}
+                            </Typography>
+                            {isInTable && (
+                              <Typography variant="caption" sx={{ opacity: 0.4, fontSize: '0.7rem' }}>⠿</Typography>
+                            )}
+                          </Box>
+                        );
+                      })}
+                    </Box>
+                  </Box>
+                ) : (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Box
+                      sx={{
+                        px: 1.5, py: 0.4,
+                        borderRadius: 2,
+                        bgcolor: isMyTurn ? 'primary.main' : 'action.selected',
+                        color: isMyTurn ? 'primary.contrastText' : 'text.secondary',
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        transition: 'background-color 0.3s',
+                      }}
+                    >
+                      {isMyTurn ? t.tableGameTools.yourTurn : `${t.tableGameTools.turnOf} ${activePlayer?.displayName ?? '?'}`}
+                    </Box>
+                  </Box>
+                )}
               </Box>
             )}
 

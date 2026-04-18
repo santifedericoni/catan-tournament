@@ -83,6 +83,16 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       .emit('table_timer_reset', payload);
   }
 
+  @SubscribeMessage('table_timer_config')
+  handleTableTimerConfig(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { tournamentId: string; tableId: string; duration: number },
+  ) {
+    this.server
+      .to(`tournament:${payload.tournamentId}`)
+      .emit('table_timer_config', payload);
+  }
+
   @SubscribeMessage('table_turn_state')
   handleTableTurnState(
     @ConnectedSocket() client: Socket,
